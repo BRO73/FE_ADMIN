@@ -12,6 +12,8 @@ import DeleteConfirmDialog from "@/components/forms/DeleteConfirmDialog";
 import { useTables } from "@/hooks/useTables";
 import { useLocations } from "@/hooks/useLocations";
 import { TableFormData, TableResponse, LocationResponse, LocationFormData } from "@/types/type";
+import TableQrDialog from "@/components/forms/TableQrDialog";
+import { QrCode } from "lucide-react";
 
 const TableManagementPage = () => {
   const { toast } = useToast();
@@ -38,6 +40,9 @@ const TableManagementPage = () => {
   const [isLocationDeleteDialogOpen, setIsLocationDeleteDialogOpen] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [qrTable, setQrTable] = useState<TableResponse | null>(null);
+
 
   // Filtered tables
   const filteredTables = tables.filter(
@@ -245,6 +250,9 @@ const TableManagementPage = () => {
                       </td>
                       <td className="text-center align-middle">
                         <div className="flex justify-center gap-2">
+                          <Button variant="ghost" size="sm" onClick={() => setQrTable(table)} title="Show QR">
+                            <QrCode className="w-4 h-4" />
+                          </Button>
                           <Button variant="ghost" size="sm" onClick={() => handleEditTable(table)}>
                             <Edit className="w-4 h-4" />
                           </Button>
@@ -356,6 +364,12 @@ const TableManagementPage = () => {
         itemName={selectedLocation?.name}
         isLoading={isSubmitting}
       />
+
+        <TableQrDialog
+  open={!!qrTable}
+  onOpenChange={(o) => !o && setQrTable(null)}
+  table={qrTable}
+/>
     </div>
   );
 };

@@ -22,6 +22,7 @@ import FoodDetail from "./pages/FoodDetail";
 import CartItem from "./pages/CartItem";
 import MenuPage from "./pages/MenuPage";
 import FirebaseOtpLogin from "@/components/login/FirebaseOtpLogin";
+import QrScanner from "@/pages/QrScanner";
 
 
 const queryClient = new QueryClient();
@@ -41,6 +42,7 @@ const App = () => (
             <Route path="/cart" element={<CartItem />} />
             <Route path="/" element={<Navigate to="/admin" replace />} />
             <Route path="/otp-login" element={<FirebaseOtpLogin />} />
+            <Route path="/scan" element={<QrScanner />} />
 
 
 
@@ -54,6 +56,7 @@ const App = () => (
               <Route path="promotions" element={<PromotionPage />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="transactions" element={<TransactionsPage />} />
+              <Route path="scan" element={<QrScanner />} />
 
 
             </Route>
