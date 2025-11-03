@@ -28,6 +28,7 @@ const navigationItems = [
   { name: "Promotions", href: "/admin/promotions", icon: Megaphone },
   { name: "Reports", href: "/admin/reports", icon: BarChart3 },
   { name: "Transactions", href: "/admin/transactions", icon: CreditCard },
+  { name: "Table Map", href: "/admin/tablemap", icon: CreditCard },
 ];
 
 const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {

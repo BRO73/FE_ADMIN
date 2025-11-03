@@ -83,3 +83,30 @@ export interface TableFormData {
     locationId: number;
     status: "Available" | "Occupied" | "Reserved" | "Maintenance";
 }
+export interface FloorElementRequest {
+    id?: number;        // optional because when creating, id may not exist yet
+    type: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+    color?: string;
+    label?: string;
+    floor: string;
+    tableId?: number;
+}
+
+export interface FloorElementResponse {
+    id: number;
+    type: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+    color?: string;
+    label?: string;
+    floor: string;
+    tableId?: number;
+}
