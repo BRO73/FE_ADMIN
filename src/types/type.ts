@@ -32,7 +32,7 @@ export interface MenuItemFormData {
     imageUrl: string;
     price: number;
     status: "available" | "unavailable" | "seasonal";
-    categoryName: string; 
+    categoryName: string;
 }
 
 export interface MenuItem {
@@ -42,24 +42,24 @@ export interface MenuItem {
     imageUrl?: string;
     price: number;
     status: "available" | "unavailable" | "seasonal";
-    category: string; 
+    category: string;
 }
 
 // Location
 export interface LocationResponse {
-  id: number;
-  name: string;
-  description?: string;
+    id: number;
+    name: string;
+    description?: string;
 }
 
 export interface LocationRequest {
-  name: string;
-  description?: string;
+    name: string;
+    description?: string;
 }
 
 export interface LocationFormData {
-  name: string;
-  description?: string;
+    name: string;
+    description?: string;
 }
 
 // Table
@@ -82,4 +82,12 @@ export interface TableFormData {
     capacity: number;
     locationId: number;
     status: "Available" | "Occupied" | "Reserved" | "Maintenance";
+}
+
+
+export interface CustomerResponse {
+    userId: number;
+    fullName: string;
+    phoneNumber: string;
+    email: string;
 }
