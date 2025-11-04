@@ -9,7 +9,8 @@ import {
   Megaphone,
   BarChart3,
   CreditCard,
-  X
+  X,
+  UserCircle
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -21,6 +22,7 @@ interface SidebarProps {
 const navigationItems = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Table Management", href: "/admin/tables", icon: Table },
+  { name: "Customer Management", href: "/admin/customers", icon: UserCircle },
   { name: "Staff Management", href: "/admin/staff", icon: Users },
   { name: "Menu Management", href: "/admin/menu", icon: ChefHat },
   { name: "Bookings", href: "/admin/bookings", icon: Calendar },
