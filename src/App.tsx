@@ -22,6 +22,7 @@ import FoodDetail from "./pages/FoodDetail";
 import CartItem from "./pages/CartItem";
 import MenuPage from "./pages/MenuPage";
 import FirebaseOtpLogin from "@/components/login/FirebaseOtpLogin";
+import CustomerManagementPage from "./pages/CustomerManagementPage";
 
 import KitchenDashboardPage from "./pages/KitchenDashboardPage";
 import MenuAvailabilityPage from "./pages/MenuAvailabilityPage";
@@ -50,6 +51,7 @@ const App = () => (
             <Route path="/admin" element={<DashboardLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="tables" element={<TableManagementPage />} />
+              <Route path="customers" element={<CustomerManagementPage />} />
               <Route path="staff" element={<StaffManagementPage />} />
               <Route path="menu" element={<MenuManagementPage />} />
                 <Route path="menu-availability" element={<MenuAvailabilityPage />} />
