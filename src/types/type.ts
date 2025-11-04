@@ -84,6 +84,76 @@ export interface TableFormData {
     status: "Available" | "Occupied" | "Reserved" | "Maintenance";
 }
 
+export interface FloorElementRequest {
+    id?: number;        // optional because when creating, id may not exist yet
+    type: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+    color?: string;
+    label?: string;
+    floor: string;
+    tableId?: number;
+}
+
+export interface FloorElementResponse {
+    id: number;
+    type: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    rotation: number;
+    color?: string;
+    label?: string;
+    floor: string;
+    tableId?: number;
+}
+export interface BookingRequest {
+    tableIds: number[]; // Danh sách ID bàn
+    customerName: string;
+    customerPhone: string;
+    customerEmail: string;
+    numGuests: number;
+    status?: string; // Có thể bỏ trống, mặc định Pending
+    notes?: string;
+    staffId?: number;
+    bookingTime: string; // ISO format: 'yyyy-MM-ddTHH:mm:ss'
+}
+
+export interface TableSimpleResponse {
+    id: number;
+    tableNumber: string;
+    capacity: number;
+    status: string;
+}
+
+
+export interface CustomerSimpleResponse {
+    id: number;
+    username: string;
+}
+
+
+
+export interface BookingResponse {
+    id: number;
+    customerName: string;
+    customerPhone: string;
+    customerEmail: string;
+    bookingTime: string; // ISO 8601 format, e.g. '2025-11-04T17:30:00'
+    numGuests: number;
+    notes: string;
+    status: string;
+    table: TableSimpleResponse[];
+    customer: CustomerSimpleResponse;
+    createdAt: string;
+    updatedAt: string;
+}
+
+
 
 export interface CustomerResponse {
     userId: number;
