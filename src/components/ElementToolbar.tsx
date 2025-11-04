@@ -15,7 +15,7 @@ const tools: { type: ElementType; icon: typeof Square; label: string }[] = [
   { type: "window", icon: Columns, label: "Window" },
   { type: "balcony", icon: Square, label: "Balcony" },
   { type: "door", icon: DoorOpen, label: "Door" },
-  { type: "other", icon: Box, label: "Other" },
+  { type: "other", icon: Box, label: "Ground" },
 ];
 
 export const ElementToolbar = ({selectedTool, currentElement, onToolChange }: ElementToolbarProps) => {

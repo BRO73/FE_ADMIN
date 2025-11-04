@@ -5,8 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Save, RotateCcw } from "lucide-react";
 import { FloorElement } from "./FloorCanvas";
 import { Separator } from "@/components/ui/separator";
+import {TableResponse} from "@/types/type.ts";
 
 interface SidebarProps {
+  tables: TableResponse[];
   floors: string[];
   currentFloor: string;
   onFloorChange: (floor: string) => void;
@@ -20,6 +22,7 @@ interface SidebarProps {
 }
 
 export const Sidebar = ({
+    tables,
     floors,
   currentFloor,
   onFloorChange,
@@ -48,6 +51,7 @@ export const Sidebar = ({
         <Separator />
 
         <PropertiesPanel
+            tables={tables}
           element={selectedElement}
           onUpdate={onElementUpdate}
           onDelete={onElementDelete}

@@ -11,12 +11,15 @@ import {
     useUpdateFloorElement,
     useFloorElements,
 } from "@/hooks/useFloorElements";
+import {useTables} from "@/hooks/useTables.ts";
 
 const TableMapEditor = () => {
+    // Tables hook
+    const { tables} = useTables();
     const { locations, loading, error } = useLocations();
     const floors = locations.map((location) => location.name);
 
-    const [currentFloor, setCurrentFloor] = useState<string>("floor1");
+    const [currentFloor, setCurrentFloor] = useState<string>("");
     const [selectedElementId, setSelectedElementId] = useState<number | null>(null);
     const [selectedTool, setSelectedTool] = useState<ElementType>("table");
 
@@ -185,6 +188,7 @@ const TableMapEditor = () => {
     return (
         <div className="flex h-screen w-full bg-background">
             <Sidebar
+                tables={tables}
                 floors={floors}
                 currentFloor={currentFloor}
                 onFloorChange={handleFloorChange}
@@ -203,6 +207,7 @@ const TableMapEditor = () => {
             <main className="flex-1 p-6">
                 <div className="h-full">
                     <FloorCanvas
+                        tables={tables}
                         currentFloor={currentFloor}
                         elements={currentFloorElements} // ✅ chỉ render element của tầng hiện tại
                         onElementsUpdate={handleElementsUpdate}

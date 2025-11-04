@@ -4,8 +4,11 @@ import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
 import { Trash2 } from "lucide-react";
 import { FloorElement } from "./FloorCanvas";
+import {Select, SelectContent, SelectItem, SelectTrigger, SelectValue} from "@/components/ui/select.tsx";
+import {TableResponse} from "@/types/type.ts";
 
 interface PropertiesPanelProps {
+    tables: TableResponse[];
   element: FloorElement | null;
   onUpdate: (updates: Partial<FloorElement>) => void;
   onDelete: () => void;
@@ -20,7 +23,7 @@ const colorPresets = [
   { name: "Gray", value: "#6B7280" },
 ];
 
-export const PropertiesPanel = ({ element, onUpdate, onDelete }: PropertiesPanelProps) => {
+export const PropertiesPanel = ({ tables,element, onUpdate, onDelete }: PropertiesPanelProps) => {
   if (!element) {
     return (
       <div className="space-y-2 p-4 border border-border rounded-lg bg-muted/30">
@@ -58,7 +61,7 @@ export const PropertiesPanel = ({ element, onUpdate, onDelete }: PropertiesPanel
                 onUpdate(element);
               }}
               min={5}
-              max={300}
+              max={element.type === "other" || element.type === "balcony" ? 1000 : 300}
               step={5}
               className="mt-2"
           />
@@ -75,7 +78,7 @@ export const PropertiesPanel = ({ element, onUpdate, onDelete }: PropertiesPanel
                 onUpdate(element);
               }}
               min={5}
-              max={300}
+              max={element.type === "other" || element.type === "balcony" ? 1000 : 300}
               step={5}
               className="mt-2"
           />
@@ -147,6 +150,32 @@ export const PropertiesPanel = ({ element, onUpdate, onDelete }: PropertiesPanel
               placeholder="Enter label..."
           />
         </div>
+          {/* Table */}
+          <div>
+              <Label className="text-xs" htmlFor="table">
+                  Table
+              </Label>
+              <Select
+                  value={element.tableId!=null ?element.tableId.toString() : ""} // lấy tableId hiện tại của element
+                  onValueChange={(value) => {
+                      element.tableId = Number(value);
+                      element.label = tables.find((tb) => tb.id == Number(value)).tableNumber ;// cập nhật tableId
+                      onUpdate(element);         // gọi callback
+                  }}
+              >
+                  <SelectTrigger className="w-full bg-card shadow-soft">
+                      <SelectValue placeholder="Choose a table" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-popover border-border">
+                      {tables.map((table) => (
+                          <SelectItem key={table.id} value={table.id.toString()}>
+                              {table.tableNumber}
+                          </SelectItem>
+                      ))}
+                  </SelectContent>
+              </Select>
+          </div>
+
       </div>
 
     </div>
