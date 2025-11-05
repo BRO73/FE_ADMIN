@@ -8,7 +8,7 @@ const mapToTable = (res: TableResponse): TableResponse => ({
     capacity: res.capacity,
     locationId: res.locationId,
     locationName: res.locationName,
-    status: res.status as "available" | "occupied" | "reserved" | "maintenance",
+    status: res.status as "Available" | "Occupied" | "Reserved" | "Maintenance",
 });
 
 // --- API functions ---
@@ -42,7 +42,7 @@ export const getTablesByLocation = async (locationId: number): Promise<TableResp
 };
 
 export const getTablesByStatus = async (
-    status: "available" | "occupied" | "reserved" | "maintenance"
+    status: "Available" | "Occupied" | "Reserved" | "Maintenance"
 ): Promise<TableResponse[]> => {
     const { data } = await api.get<TableResponse[]>(`/tables/status/${status}`);
     return data.map(mapToTable);

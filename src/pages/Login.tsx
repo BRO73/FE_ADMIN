@@ -72,7 +72,6 @@ const Login = () => {
       // ✅ Lưu token vào localStorage
       localStorage.setItem("accessToken", data.data.accessToken);
       localStorage.setItem("refreshToken", data.data.refreshToken);
-
       toast({
         title: "Đăng nhập thành công!",
         description: `Chào mừng ${formData.username} quay trở lại.`,
@@ -99,7 +98,6 @@ const Login = () => {
 
         <div className="auth-card">
           <form onSubmit={handleSubmit} className="space-y-6">
-            
             <FloatingInput
               name="username"
               type="text"
@@ -124,6 +122,18 @@ const Login = () => {
               </LoadingButton>
             </div>
           </form>
+
+          <div className="pt-4">
+            {/* 🔥 Nút đăng nhập OTP Firebase */}
+            <button
+              type="button"
+              onClick={() => navigate("/otp-login")}
+              className="mt-3 w-full py-2 rounded-2xl border border-gray-300 hover:bg-gray-100 transition"
+            >
+              Đăng nhập bằng số điện thoại (OTP)
+            </button>
+          </div>
+
 
           <div className="text-center mt-6">
             <Link to="/register" className="btn-link">

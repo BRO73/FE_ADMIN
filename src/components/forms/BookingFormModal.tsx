@@ -3,345 +3,309 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
 } from "@/components/ui/dialog";
 import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
+    Form,
+    FormControl,
+    FormField,
+    FormItem,
+    FormLabel,
+    FormMessage,
 } from "@/components/ui/form";
 import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { useTables } from "@/hooks/useTables";
+import { Checkbox } from "@/components/ui/checkbox";
+import {BookingRequest, BookingResponse} from "@/types/type.ts";
 
+
+// ✅ Schema khớp hoàn toàn BookingRequest
 const bookingSchema = z.object({
-  customerName: z.string().min(2, "Customer name must be at least 2 characters").max(50, "Name too long"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits"),
-  email: z.string().email("Invalid email address").optional().or(z.literal("")),
-  tableNumber: z.string().min(1, "Table selection is required"),
-  date: z.string().min(1, "Date is required"),
-  time: z.string().min(1, "Time is required"),
-  partySize: z.coerce.number().min(1, "Party size must be at least 1").max(20, "Maximum 20 guests"),
-  status: z.enum(["confirmed", "pending", "cancelled"]),
-  specialRequests: z.string().max(500, "Special requests too long").optional(),
-}).refine((data) => {
-  const bookingDate = new Date(`${data.date}T${data.time}`);
-  return bookingDate > new Date();
-}, {
-  message: "Booking date and time must be in the future",
-  path: ["date"]
+    tableIds: z.array(z.number()).min(1, "Phải chọn ít nhất 1 bàn"),
+    customerName: z.string().min(2, "Tên khách hàng tối thiểu 2 ký tự"),
+    customerPhone: z.string().min(8, "Số điện thoại không hợp lệ"),
+    customerEmail: z.string().email("Email không hợp lệ").optional().or(z.literal("")),
+    numGuests: z.coerce.number().min(1, "Phải có ít nhất 1 khách"),
+    status: z.enum(["pending", "confirmed", "cancelled", "completed"]).default("pending"),
+    notes: z.string().optional(),
+    staffId: z.number().optional(),
+    bookingTime: z.string().min(1, "Thời gian đặt bàn không được để trống"),
 });
 
-type BookingFormData = z.infer<typeof bookingSchema>;
-
-interface Booking {
-  id: number;
-  customerName: string;
-  phone: string;
-  email?: string;
-  tableNumber: string;
-  date: string;
-  time: string;
-  partySize: number;
-  status: "confirmed" | "pending" | "cancelled" | "completed";
-  specialRequests?: string;
-}
+// nếu BookingFormData chính là BookingRequest thì alias:
+type BookingFormData = BookingRequest; // or keep infer typeof zod schema
 
 interface BookingFormModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (data: BookingFormData) => void;
-  booking?: Booking;
-  mode: "add" | "edit";
+    isOpen: boolean;
+    onClose: () => void;
+    // onSubmit trả Promise<void> và nhận đúng BookingFormData (không optional)
+    onSubmit: (data: BookingFormData) => Promise<void> | void;
+    booking?: BookingResponse;
+    mode: "add" | "edit";
 }
 
+
 const BookingFormModal = ({ isOpen, onClose, onSubmit, booking, mode }: BookingFormModalProps) => {
-  const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+    const { toast } = useToast();
+    const { tables, loading: tablesLoading } = useTables();
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Mock tables for selection
-  const availableTables = [
-    "T01", "T02", "T03", "T04", "T05", "T06", "T07", "T08"
-  ];
+    const form = useForm<BookingFormData>({
+        resolver: zodResolver(bookingSchema),
+        defaultValues: {
+            tableIds: [],
+            customerName: "",
+            customerPhone: "",
+            customerEmail: "",
+            numGuests: 1,
+            status: "pending",
+            notes: "",
+            bookingTime: new Date().toISOString().slice(0, 16),
+        },
+    });
 
-  const form = useForm<BookingFormData>({
-    resolver: zodResolver(bookingSchema),
-    defaultValues: {
-      customerName: "",
-      phone: "",
-      email: "",
-      tableNumber: "",
-      date: new Date().toISOString().split('T')[0],
-      time: "19:00",
-      partySize: 2,
-      status: "pending",
-      specialRequests: "",
-    },
-  });
+    // ✅ Load khi edit
+    useEffect(() => {
+        if (booking && mode === "edit") {
+            const tableIds = booking.table?.map((t: any) => t.id) || [];
+            const totalCapacity = booking.table?.reduce((acc: number, t: any) => acc + (t.capacity || 0), 0);
 
-  useEffect(() => {
-    if (booking && mode === "edit") {
-      form.setValue("customerName", booking.customerName);
-      form.setValue("phone", booking.phone);
-      form.setValue("email", booking.email || "");
-      form.setValue("tableNumber", booking.tableNumber);
-      form.setValue("date", booking.date);
-      form.setValue("time", booking.time);
-      form.setValue("partySize", booking.partySize);
-      form.setValue("status", booking.status === "completed" ? "confirmed" : booking.status);
-      form.setValue("specialRequests", booking.specialRequests || "");
-    } else if (mode === "add") {
-      const today = new Date();
-      const tomorrow = new Date(today);
-      tomorrow.setDate(today.getDate() + 1);
-      
-      form.reset({
-        customerName: "",
-        phone: "",
-        email: "",
-        tableNumber: "",
-        date: tomorrow.toISOString().split('T')[0],
-        time: "19:00",
-        partySize: 2,
-        status: "pending",
-        specialRequests: "",
-      });
-    }
-  }, [booking, mode, form]);
+            form.reset({
+                tableIds,
+                customerName: booking.customerName || "",
+                customerPhone: booking.customerPhone || "",
+                customerEmail: booking.customerEmail || "",
+                numGuests: totalCapacity || booking.numGuests || 1,
+                status: (booking.status as "pending" | "confirmed" | "cancelled" | "completed") || "pending",
+                notes: booking.notes || "",
+                bookingTime: booking.bookingTime
+                    ? booking.bookingTime.slice(0, 16) // cắt dạng yyyy-MM-ddTHH:mm
+                    : new Date().toISOString().slice(0, 16),
+            });
+        } else if (mode === "add") {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            form.reset({
+                tableIds: [],
+                customerName: "",
+                customerPhone: "",
+                customerEmail: "",
+                numGuests: 1,
+                status: "pending",
+                notes: "",
+                bookingTime: tomorrow.toISOString().slice(0, 16),
+            });
+        }
+    }, [booking, mode, form]);
 
-  const handleSubmit = async (data: BookingFormData) => {
-    setIsSubmitting(true);
-    try {
-      onSubmit(data);
-      toast({
-        title: mode === "add" ? "Booking Created" : "Booking Updated",
-        description: `Booking for ${data.customerName} has been ${mode === "add" ? "created" : "updated"} successfully.`,
-      });
-      onClose();
-      form.reset();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    // ✅ Khi chọn bàn → tính tổng capacity
+    const handleTableSelect = (tableId: number) => {
+        const currentIds = form.getValues("tableIds");
+        const newIds = currentIds.includes(tableId)
+            ? currentIds.filter((id) => id !== tableId)
+            : [...currentIds, tableId];
 
-  const handleClose = () => {
-    form.reset();
-    onClose();
-  };
+        form.setValue("tableIds", newIds);
 
-  return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <DialogTitle>
-            {mode === "add" ? "New Booking" : "Edit Booking"}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === "add" 
-              ? "Create a new table reservation."
-              : "Update the booking details."
-            }
-          </DialogDescription>
-        </DialogHeader>
+        // Tính tổng capacity
+        const totalCapacity = tables
+            .filter((t) => newIds.includes(t.id))
+            .reduce((sum, t) => sum + (t.capacity || 0), 0);
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="customerName"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Customer Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="John Smith" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        form.setValue("numGuests", totalCapacity);
+    };
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="phone"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Phone Number</FormLabel>
-                    <FormControl>
-                      <Input placeholder="+1 234-567-8901" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+    const handleSubmit = async (data: BookingFormData) => {
+        setIsSubmitting(true);
+        try {
+            // format bookingTime sang ISO chuẩn có giây
+            const formattedData = {
+                ...data
+            };
+            await onSubmit(formattedData);
+            toast({
+                title: mode === "add" ? "Đã tạo đặt bàn" : "Đã cập nhật đặt bàn",
+                description: `Khách hàng: ${data.customerName}`,
+            });
+            form.reset();
+            onClose?.();
+        } catch {
+            toast({
+                title: "Lỗi",
+                description: "Không thể lưu đặt bàn. Vui lòng thử lại.",
+                variant: "destructive",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
-              <FormField
-                control={form.control}
-                name="email"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Email (Optional)</FormLabel>
-                    <FormControl>
-                      <Input type="email" placeholder="john@email.com" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+    const handleClose = () => {
+        form.reset();
+        onClose();
+    };
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="tableNumber"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Table</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select table" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          {availableTables.map((table) => (
-                            <SelectItem key={table} value={table}>
-                              Table {table}
-                            </SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+    const selectedTables = form.watch("tableIds");
+    const totalCapacity = tables
+        .filter((t) => selectedTables.includes(t.id))
+        .reduce((sum, t) => sum + (t.capacity || 0), 0);
 
-              <FormField
-                control={form.control}
-                name="partySize"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Party Size</FormLabel>
-                    <FormControl>
-                      <Input type="number" min="1" max="20" placeholder="2" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+    return (
+        <Dialog open={isOpen} onOpenChange={handleClose}>
+            <DialogContent className="sm:max-w-[520px] max-h-[90vh] overflow-y-auto">
+                <DialogHeader>
+                    <DialogTitle>{mode === "add" ? "Đặt bàn mới" : "Chỉnh sửa đặt bàn"}</DialogTitle>
+                    <DialogDescription>
+                        {mode === "add"
+                            ? "Điền thông tin khách hàng và chọn bàn để tạo đặt chỗ."
+                            : "Cập nhật thông tin chi tiết của đơn đặt bàn."}
+                    </DialogDescription>
+                </DialogHeader>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="date"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
 
-              <FormField
-                control={form.control}
-                name="time"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Time</FormLabel>
-                    <FormControl>
-                      <Input type="time" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
+                        {/* Tên khách hàng */}
+                        <FormField
+                            control={form.control}
+                            name="customerName"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Tên khách hàng</FormLabel>
+                                    <FormControl><Input {...field} placeholder="Nguyễn Văn A" /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Status</FormLabel>
-                  <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="pending">Pending</SelectItem>
-                        <SelectItem value="confirmed">Confirmed</SelectItem>
-                        <SelectItem value="cancelled">Cancelled</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                        {/* SĐT & email */}
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField
+                                control={form.control}
+                                name="customerPhone"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Số điện thoại</FormLabel>
+                                        <FormControl><Input {...field} placeholder="0987 654 321" /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                            <FormField
+                                control={form.control}
+                                name="customerEmail"
+                                render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel>Email</FormLabel>
+                                        <FormControl><Input type="email" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )}
+                            />
+                        </div>
 
-            <FormField
-              control={form.control}
-              name="specialRequests"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Special Requests (Optional)</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Any special requirements or notes..."
-                      rows={3}
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                        {/* Chọn bàn */}
+                        <FormItem>
+                            <FormLabel>Chọn bàn</FormLabel>
+                            <div className="grid grid-cols-2 gap-2 border p-2 rounded-md">
+                                {tablesLoading ? (
+                                    <p>Đang tải danh sách bàn...</p>
+                                ) : (
+                                    tables.filter((t)=>t.status.toLowerCase() === "available").map((t) => (
+                                        <div key={t.id} className="flex items-center space-x-2">
+                                            <Checkbox
+                                                checked={selectedTables.includes(t.id)}
+                                                onCheckedChange={() => handleTableSelect(t.id)}
+                                            />
+                                            <label>
+                                                {t.tableNumber} ({t.capacity} người)
+                                            </label>
+                                        </div>
+                                    ))
+                                )}
+                            </div>
+                            <p className="text-sm text-muted-foreground mt-1">
+                                Tổng sức chứa: <strong>{totalCapacity}</strong> người
+                            </p>
+                        </FormItem>
 
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : mode === "add" ? "Create Booking" : "Update Booking"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
+                        {/* Thời gian đặt */}
+                        <FormField
+                            control={form.control}
+                            name="bookingTime"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Thời gian đặt</FormLabel>
+                                    <FormControl><Input type="datetime-local" {...field} /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        {/* Trạng thái */}
+                        <FormField
+                            control={form.control}
+                            name="status"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Trạng thái</FormLabel>
+                                    <FormControl>
+                                        <Select value={field.value} onValueChange={field.onChange}>
+                                            <SelectTrigger><SelectValue placeholder="Chọn trạng thái" /></SelectTrigger>
+                                            <SelectContent>
+                                                <SelectItem value="pending">Đang chờ</SelectItem>
+                                                <SelectItem value="confirmed">Đã xác nhận</SelectItem>
+                                                <SelectItem value="cancelled">Đã huỷ</SelectItem>
+                                                <SelectItem value="completed">Hoàn tất</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        {/* Ghi chú */}
+                        <FormField
+                            control={form.control}
+                            name="notes"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Ghi chú</FormLabel>
+                                    <FormControl><Textarea {...field} placeholder="Yêu cầu đặc biệt..." /></FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
+
+                        <DialogFooter>
+                            <Button type="button" variant="outline" onClick={handleClose} disabled={isSubmitting}>
+                                Huỷ
+                            </Button>
+                            <Button type="submit" disabled={isSubmitting}>
+                                {isSubmitting ? "Đang lưu..." : mode === "add" ? "Tạo đặt bàn" : "Cập nhật"}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
 };
 
 export default BookingFormModal;

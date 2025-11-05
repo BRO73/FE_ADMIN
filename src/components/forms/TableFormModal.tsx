@@ -29,13 +29,14 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { TableFormData, TableResponse } from "@/types/type";
+import { useLocations } from "@/hooks/useLocations";
 
 /** Schema đúng shape FE/BE: "available" | "occupied" | "reserved" | "maintenance" */
 const tableSchema = z.object({
   tableNumber: z.string().min(1, "Table number is required").max(10, "Too long"),
   capacity: z.coerce.number().min(1, "At least 1 seat").max(20, "Maximum 20 seats"),
-  locationId: z.coerce.number().min(1, "Location is required"),
-  status: z.enum(["available", "occupied", "reserved", "maintenance"]),
+  locationId:z.coerce.number().min(1, "Location is required"),
+  status: z.enum(["Available", "Occupied", "Reserved", "Maintenance"]),
 });
 
 type FormInput = z.input<typeof tableSchema>;   // input cho form (cho phép coerce)
@@ -59,10 +60,12 @@ const TableFormModal = ({ isOpen, onClose, onSubmit, table, mode }: TableFormMod
     defaultValues: {
       tableNumber: "",
       capacity: 4,
-      locationId: 0,
-      status: "available",
+      locationId: 1,
+      status: "Available",
     },
   });
+
+const { locations, loading, error } = useLocations(); 
 
   useEffect(() => {
     if (table && mode === "edit") {
@@ -74,8 +77,8 @@ const TableFormModal = ({ isOpen, onClose, onSubmit, table, mode }: TableFormMod
       form.reset({
         tableNumber: "",
         capacity: 4,
-        locationId: 0,
-        status: "available",
+        locationId: 1,
+        status: "Available",
       });
     }
   }, [table, mode, form]);
@@ -155,18 +158,35 @@ const TableFormModal = ({ isOpen, onClose, onSubmit, table, mode }: TableFormMod
 
             {/* Location ID */}
             <FormField
-              control={form.control}
-              name="locationId"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Location</FormLabel>
-                  <FormControl>
-                    <Input type="number" placeholder="Enter location id" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+  control={form.control}
+  name="locationId"
+  render={({ field }) => (
+    <FormItem>
+      <FormLabel>Location</FormLabel>
+      <FormControl>
+        <Select
+          onValueChange={(val) => field.onChange(Number(val))} // 👈 ép về số
+          value={field.value ? field.value.toString() : ""}   // 👈 hiển thị đúng
+        >
+          <SelectTrigger>
+            <SelectValue placeholder="Select location" />
+          </SelectTrigger>
+          <SelectContent>
+            {locations.map((location) => (
+              <SelectItem
+                key={location.id}
+                value={location.id.toString()} // 👈 gửi lên dạng string
+              >
+                {location.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </FormControl>
+      <FormMessage />
+    </FormItem>
+  )}
+/>
 
             {/* Status */}
             <FormField
@@ -181,10 +201,10 @@ const TableFormModal = ({ isOpen, onClose, onSubmit, table, mode }: TableFormMod
                         <SelectValue placeholder="Select status" />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="available">Available</SelectItem>
-                        <SelectItem value="occupied">Occupied</SelectItem>
-                        <SelectItem value="reserved">Reserved</SelectItem>
-                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                        <SelectItem value="Available">Available</SelectItem>
+                        <SelectItem value="Occupied">Occupied</SelectItem>
+                        <SelectItem value="Reserved">Reserved</SelectItem>
+                        <SelectItem value="Maintenance">Maintenance</SelectItem>
                       </SelectContent>
                     </Select>
                   </FormControl>
