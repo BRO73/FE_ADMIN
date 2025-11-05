@@ -25,6 +25,9 @@ import FirebaseOtpLogin from "@/components/login/FirebaseOtpLogin";
 import CustomerManagementPage from "./pages/CustomerManagementPage";
 
 
+import KitchenDashboardPage from "./pages/KitchenDashboardPage";
+import MenuAvailabilityPage from "./pages/MenuAvailabilityPage";
+
 
 const queryClient = new QueryClient();
 
@@ -44,7 +47,7 @@ const App = () => (
             <Route path="/" element={<Navigate to="/admin" replace />} />
             <Route path="/otp-login" element={<FirebaseOtpLogin />} />
 
-
+              <Route path="kitchen" element={<KitchenDashboardPage />} />
 
             <Route path="/admin" element={<DashboardLayout />}>
               <Route index element={<DashboardPage />} />
@@ -52,6 +55,7 @@ const App = () => (
               <Route path="customers" element={<CustomerManagementPage />} />
               <Route path="staff" element={<StaffManagementPage />} />
               <Route path="menu" element={<MenuManagementPage />} />
+                <Route path="menu-availability" element={<MenuAvailabilityPage />} />
               <Route path="bookings" element={<BookingManagementPage />} />
               <Route path="feedback" element={<FeedbackPage />} />
               <Route path="promotions" element={<PromotionPage />} />
