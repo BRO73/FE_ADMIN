@@ -8,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    storeName: "",
     username: "",
     password: "",
   });
@@ -30,9 +29,6 @@ const Login = () => {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.storeName.trim()) {
-      newErrors.storeName = "Tên cửa hàng không được để trống";
-    }
     if (!formData.username.trim()) {
       newErrors.username = "Tên đăng nhập không được để trống";
     }
@@ -56,7 +52,7 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8081/api/auth/login", {
+      const response = await fetch("http://localhost:8082/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -64,8 +60,6 @@ const Login = () => {
         body: JSON.stringify({
           username: formData.username,
           password: formData.password,
-          // Nếu BE yêu cầu storeName, thì thêm dòng này:
-          storeName: formData.storeName,
         }),
       });
 
@@ -76,8 +70,8 @@ const Login = () => {
       const data = await response.json();
 
       // ✅ Lưu token vào localStorage
-      localStorage.setItem("accessToken", data.accessToken);
-      localStorage.setItem("refreshToken", data.refreshToken);
+      localStorage.setItem("accessToken", data.data.accessToken);
+      localStorage.setItem("refreshToken", data.data.refreshToken);
 
       toast({
         title: "Đăng nhập thành công!",
@@ -105,15 +99,7 @@ const Login = () => {
 
         <div className="auth-card">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <FloatingInput
-              name="storeName"
-              type="text"
-              label="Tên cửa hàng"
-              value={formData.storeName}
-              onChange={handleInputChange}
-              error={errors.storeName}
-            />
-
+            
             <FloatingInput
               name="username"
               type="text"

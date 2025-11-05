@@ -1,143 +1,103 @@
 import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-
-const promotionSchema = z.object({
-  title: z.string().min(3, "Title must be at least 3 characters").max(100, "Title too long"),
-  description: z.string().min(10, "Description must be at least 10 characters").max(500, "Description too long"),
-  discountType: z.enum(["percentage", "fixed"]),
-  discountValue: z.coerce.number().min(0.01, "Discount must be greater than 0"),
-  startDate: z.string().min(1, "Start date is required"),
-  endDate: z.string().min(1, "End date is required"),
-  status: z.enum(["active", "inactive", "scheduled"]),
-  maxUsage: z.coerce.number().min(1, "Max usage must be at least 1").optional(),
-  code: z.string().min(3, "Code must be at least 3 characters").max(20, "Code too long").optional(),
-}).refine((data) => {
-  if (data.discountType === "percentage" && data.discountValue > 100) {
-    return false;
-  }
-  return true;
-}, {
-  message: "Percentage discount cannot exceed 100%",
-  path: ["discountValue"]
-}).refine((data) => {
-  return new Date(data.endDate) > new Date(data.startDate);
-}, {
-  message: "End date must be after start date",
-  path: ["endDate"]
-});
-
-type PromotionFormData = z.infer<typeof promotionSchema>;
-
-interface Promotion {
-  id: number;
-  title: string;
-  description: string;
-  discountType: "percentage" | "fixed";
-  discountValue: number;
-  startDate: string;
-  endDate: string;
-  status: "active" | "inactive" | "expired" | "scheduled";
-  usageCount: number;
-  maxUsage?: number;
-  code?: string;
-}
+import {
+  createPromotion,
+  updatePromotion,
+  PromotionFormData,
+} from "@/api/promotion.api";
 
 interface PromotionFormModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSubmit: (data: PromotionFormData) => void;
-  promotion?: Promotion;
+  onSubmit: () => void;
+  promotion?: any;
   mode: "add" | "edit";
 }
 
-const PromotionFormModal = ({ isOpen, onClose, onSubmit, promotion, mode }: PromotionFormModalProps) => {
+const PromotionFormModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  promotion,
+  mode,
+}: PromotionFormModalProps) => {
   const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const form = useForm<PromotionFormData>({
-    resolver: zodResolver(promotionSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      discountType: "percentage",
-      discountValue: 10,
-      startDate: new Date().toISOString().split('T')[0],
-      endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-      status: "scheduled",
-      maxUsage: undefined,
-      code: "",
-    },
+  const [formData, setFormData] = useState<PromotionFormData>({
+    title: "",
+    code: "",
+    description: "",
+    discountType: "percentage",
+    discountValue: 0,
+    startDate: "",
+    endDate: "",
+    minSpend: 0,
+    maxUsage: 0,
   });
+
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (promotion && mode === "edit") {
-      form.setValue("title", promotion.title);
-      form.setValue("description", promotion.description);
-      form.setValue("discountType", promotion.discountType);
-      form.setValue("discountValue", promotion.discountValue);
-      form.setValue("startDate", promotion.startDate);
-      form.setValue("endDate", promotion.endDate);
-      form.setValue("status", promotion.status === "expired" ? "inactive" : promotion.status);
-      form.setValue("maxUsage", promotion.maxUsage || undefined);
-      form.setValue("code", promotion.code || "");
-    } else if (mode === "add") {
-      form.reset({
+      setFormData({
+        title: promotion.title,
+        code: promotion.code,
+        description: promotion.description,
+        discountType: promotion.discountType,
+        discountValue: promotion.discountValue,
+        startDate: promotion.startDate,
+        endDate: promotion.endDate,
+        minSpend: promotion.minSpend || 0,
+        maxUsage: promotion.maxUsage || 0,
+      });
+    } else {
+      setFormData({
         title: "",
+        code: "",
         description: "",
         discountType: "percentage",
-        discountValue: 10,
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-        status: "scheduled",
-        maxUsage: undefined,
-        code: "",
+        discountValue: 0,
+        startDate: "",
+        endDate: "",
+        minSpend: 0,
+        maxUsage: 0,
       });
     }
-  }, [promotion, mode, form]);
+  }, [promotion, mode, isOpen]);
 
-  const handleSubmit = async (data: PromotionFormData) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData({
+      ...formData,
+      [name]: name === "discountValue" || name === "minSpend" || name === "maxUsage" ? Number(value) : value,
+    });
+  };
+
+  const handleSubmit = async () => {
     setIsSubmitting(true);
     try {
-      onSubmit(data);
-      toast({
-        title: mode === "add" ? "Promotion Created" : "Promotion Updated",
-        description: `${data.title} has been ${mode === "add" ? "created" : "updated"} successfully.`,
-      });
+      if (mode === "add") {
+        await createPromotion(formData);
+        toast({ title: "Created", description: "Promotion created successfully." });
+      } else if (promotion) {
+        await updatePromotion(promotion.id, formData);
+        toast({ title: "Updated", description: "Promotion updated successfully." });
+      }
+      onSubmit(); // Gọi hàm reload lại danh sách trong PromotionPage
       onClose();
-      form.reset();
     } catch (error) {
       toast({
         title: "Error",
-        description: "Something went wrong. Please try again.",
+        description: "Failed to save promotion.",
         variant: "destructive",
       });
     } finally {
@@ -145,209 +105,138 @@ const PromotionFormModal = ({ isOpen, onClose, onSubmit, promotion, mode }: Prom
     }
   };
 
-  const handleClose = () => {
-    form.reset();
-    onClose();
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[500px] max-h-[90vh] overflow-y-auto">
+    <Dialog open={isOpen} onOpenChange={onClose}>
+      <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {mode === "add" ? "Create New Promotion" : "Edit Promotion"}
+            {mode === "add" ? "Create Promotion" : "Edit Promotion"}
           </DialogTitle>
-          <DialogDescription>
-            {mode === "add" 
-              ? "Create a new promotional campaign for your restaurant."
-              : "Update the promotion details."
-            }
-          </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="title"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Promotion Title</FormLabel>
-                  <FormControl>
-                    <Input placeholder="Weekend Special" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+        <div className="space-y-4 py-4">
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="title">Title</Label>
+              <Input
+                id="title"
+                name="title"
+                value={formData.title}
+                onChange={handleChange}
+                placeholder="Enter promotion name"
+              />
+            </div>
+            <div>
+              <Label htmlFor="code">Code</Label>
+              <Input
+                id="code"
+                name="code"
+                value={formData.code}
+                onChange={handleChange}
+                placeholder="E.g. SUMMER25"
+              />
+            </div>
+          </div>
 
-            <FormField
-              control={form.control}
+          <div>
+            <Label htmlFor="description">Description</Label>
+            <textarea
+              id="description"
               name="description"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Description</FormLabel>
-                  <FormControl>
-                    <Textarea 
-                      placeholder="Describe the promotion details and terms..."
-                      rows={3}
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+              value={formData.description}
+              onChange={handleChange}
+              className="w-full border border-border rounded-md p-2"
+              placeholder="Describe the promotion..."
             />
+          </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="discountType">Discount Type</Label>
+              <select
+                id="discountType"
                 name="discountType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Discount Type</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="percentage">Percentage (%)</SelectItem>
-                          <SelectItem value="fixed">Fixed Amount ($)</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="discountValue"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Discount Value</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        step={form.watch("discountType") === "percentage" ? "1" : "0.01"}
-                        min="0"
-                        max={form.watch("discountType") === "percentage" ? "100" : undefined}
-                        placeholder={form.watch("discountType") === "percentage" ? "20" : "10.00"}
-                        {...field} 
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <FormField
-              control={form.control}
-              name="code"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Promotion Code (Optional)</FormLabel>
-                  <FormControl>
-                    <Input placeholder="WEEKEND20" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Start Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="endDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>End Date</FormLabel>
-                    <FormControl>
-                      <Input type="date" {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <FormField
-                control={form.control}
-                name="maxUsage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Max Usage (Optional)</FormLabel>
-                    <FormControl>
-                      <Input 
-                        type="number" 
-                        min="1"
-                        placeholder="100"
-                        {...field} 
-                        value={field.value || ""}
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <FormControl>
-                      <Select onValueChange={field.onChange} value={field.value}>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="active">Active</SelectItem>
-                          <SelectItem value="scheduled">Scheduled</SelectItem>
-                          <SelectItem value="inactive">Inactive</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-            </div>
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={isSubmitting}
+                value={formData.discountType}
+                onChange={handleChange}
+                className="w-full border border-border rounded-md p-2"
               >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : mode === "add" ? "Create Promotion" : "Update Promotion"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
+                <option value="percentage">Percentage</option>
+                <option value="fixed">Fixed Amount</option>
+              </select>
+            </div>
+            <div>
+              <Label htmlFor="discountValue">Discount Value</Label>
+              <Input
+                type="number"
+                id="discountValue"
+                name="discountValue"
+                value={formData.discountValue}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="startDate">Start Date</Label>
+              <Input
+                type="date"
+                id="startDate"
+                name="startDate"
+                value={formData.startDate}
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <Label htmlFor="endDate">End Date</Label>
+              <Input
+                type="date"
+                id="endDate"
+                name="endDate"
+                value={formData.endDate}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div>
+              <Label htmlFor="minSpend">Min Spend</Label>
+              <Input
+                type="number"
+                id="minSpend"
+                name="minSpend"
+                value={formData.minSpend}
+                onChange={handleChange}
+              />
+            </div>
+            <div>
+              <Label htmlFor="maxUsage">Max Usage</Label>
+              <Input
+                type="number"
+                id="maxUsage"
+                name="maxUsage"
+                value={formData.maxUsage}
+                onChange={handleChange}
+              />
+            </div>
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose} disabled={isSubmitting}>
+            Cancel
+          </Button>
+          <Button onClick={handleSubmit} disabled={isSubmitting}>
+            {isSubmitting
+              ? mode === "add"
+                ? "Creating..."
+                : "Saving..."
+              : mode === "add"
+              ? "Create"
+              : "Save"}
+          </Button>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
