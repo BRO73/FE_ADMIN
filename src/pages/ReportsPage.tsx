@@ -1,90 +1,113 @@
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Users, 
+import { useEffect, useState } from "react";
+import {
+  TrendingUp,
+  DollarSign,
+  Users,
   Calendar,
   Download,
   BarChart3,
   Activity,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
 } from "lucide-react";
-import { useState } from "react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import {
-  PieChart,
-  Pie,
+  getDailyReport,
+  getRevenueLast7Days,
+  getTopItemsLast7Days,
+  DailyReport,
+  RevenueDay,
+  TopItem,
+} from "@/api/report.api";
+import {
   BarChart,
   Bar,
-  Cell,
-  XAxis,
-  YAxis,
   CartesianGrid,
   Tooltip,
-  ResponsiveContainer
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 import MetricCard from "@/components/ui/MetricCard";
 
 const ReportsPage = () => {
-  const [showSalesChart, setShowSalesChart] = useState(false);
-  const [showTopItemsChart, setShowTopItemsChart] = useState(false);
-  const [showPeakHoursChart, setShowPeakHoursChart] = useState(false);
+  const { toast } = useToast();
+  const [dailyReport, setDailyReport] = useState<DailyReport | null>(null);
+  const [salesData, setSalesData] = useState<RevenueDay[]>([]);
+  const [topItems, setTopItems] = useState<TopItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [showSalesChart, setShowSalesChart] = useState(true);
+  const [showTopItemsChart, setShowTopItemsChart] = useState(true);
 
-  const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
-
-  // Mock data for demonstration
-  const salesData = [
-    { period: "Today", revenue: 2847, orders: 42, avgOrder: 67.79 },
-    { period: "Yesterday", revenue: 2315, orders: 38, avgOrder: 60.92 },
-    { period: "This Week", revenue: 18920, orders: 287, avgOrder: 65.89 },
-    { period: "Last Week", revenue: 16745, orders: 251, avgOrder: 66.71 },
-    { period: "This Month", revenue: 89650, orders: 1342, avgOrder: 66.81 },
-    { period: "Last Month", revenue: 82340, orders: 1198, avgOrder: 68.74 },
+  const COLORS = [
+    "hsl(var(--primary))",
+    "hsl(var(--chart-2))",
+    "hsl(var(--chart-3))",
+    "hsl(var(--chart-4))",
+    "hsl(var(--chart-5))",
   ];
 
-  const topItems = [
-    { name: "Grilled Salmon", orders: 156, revenue: 4521 },
-    { name: "Caesar Salad", orders: 143, revenue: 1857 },
-    { name: "Truffle Pasta", orders: 89, revenue: 3201 },
-    { name: "Craft Beer", orders: 234, revenue: 1636 },
-    { name: "Chocolate Cake", orders: 98, revenue: 881 },
-  ];
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const end = new Date();
+      const start = new Date();
+      start.setDate(end.getDate() - 7);
 
-  const peakHours = [
-    { hour: "12:00 PM", orders: 28 },
-    { hour: "1:00 PM", orders: 35 },
-    { hour: "7:00 PM", orders: 42 },
-    { hour: "8:00 PM", orders: 38 },
-    { hour: "9:00 PM", orders: 31 },
-  ];
+      const [daily, revenue, top] = await Promise.all([
+        getDailyReport(
+          start.toISOString().split(".")[0],
+          end.toISOString().split(".")[0]
+        ),
+        getRevenueLast7Days(),
+        getTopItemsLast7Days(),
+      ]);
+
+      setDailyReport(daily);
+      setSalesData(revenue);
+      setTopItems(top);
+    } catch (err) {
+      toast({
+        title: "Error",
+        description: "Failed to load reports.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
 
   const weeklyMetrics = [
     {
       title: "Total Revenue",
-      value: "$18,920",
-      change: "+12.9% vs last week",
+      value: `$${dailyReport?.totalRevenue?.toLocaleString() ?? 0}`,
       changeType: "positive" as const,
       icon: DollarSign,
     },
     {
       title: "Total Orders",
-      value: 287,
-      change: "+14.3% vs last week",
+      value: dailyReport?.totalOrders ?? 0,
       changeType: "positive" as const,
       icon: BarChart3,
     },
     {
       title: "Avg Order Value",
-      value: "$65.89",
-      change: "-1.2% vs last week",
+      value: `$${dailyReport?.avgOrderValue?.toFixed(2) ?? 0}`,
       changeType: "negative" as const,
       icon: TrendingUp,
     },
     {
       title: "Customer Visits",
-      value: 498,
-      change: "+8.7% vs last week",
+      value: dailyReport?.customerVisits ?? 0,
       changeType: "positive" as const,
       icon: Users,
     },
@@ -97,7 +120,7 @@ const ReportsPage = () => {
         <div>
           <h1 className="text-3xl font-bold text-foreground">Reports & Analytics</h1>
           <p className="text-muted-foreground mt-1">
-            Track performance, analyze trends, and make data-driven decisions.
+            Track performance and analyze real business data.
           </p>
         </div>
         <div className="flex gap-2">
@@ -112,205 +135,90 @@ const ReportsPage = () => {
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {weeklyMetrics.map((metric, index) => (
-          <MetricCard
-            key={index}
-            title={metric.title}
-            value={metric.value}
-            change={metric.change}
-            changeType={metric.changeType}
-            icon={metric.icon}
-          />
-        ))}
-      </div>
+      {/* Metrics */}
+      {loading ? (
+        <p className="text-muted-foreground">Loading metrics...</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {weeklyMetrics.map((m, i) => (
+            <MetricCard
+              key={i}
+              title={m.title}
+              value={m.value}
+              changeType={m.changeType}
+              icon={m.icon}
+            />
+          ))}
+        </div>
+      )}
 
       {/* Sales Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <Card className="dashboard-card">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-foreground">Sales Overview</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Revenue Last 7 Days</h3>
             <Button
               variant="ghost"
-              size="sm"
               onClick={() => setShowSalesChart(!showSalesChart)}
-              className="gap-2"
+              size="sm"
             >
-              {showSalesChart ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              {showSalesChart ? 'Hide Chart' : 'View Chart'}
+              {showSalesChart ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+              {showSalesChart ? "Hide" : "Show"}
             </Button>
           </div>
-          
-          {showSalesChart ? (
+          {showSalesChart && (
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={salesData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="period" stroke="hsl(var(--muted-foreground))" />
-                <YAxis stroke="hsl(var(--muted-foreground))" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '0.5rem'
-                  }} 
-                />
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="day" />
+                <YAxis />
+                <Tooltip />
                 <Bar dataKey="revenue" fill="hsl(var(--primary))" />
               </BarChart>
             </ResponsiveContainer>
-          ) : (
-            <div className="space-y-4">
-              {salesData.map((data, index) => (
-                <div key={index} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                  <div className="flex-1">
-                    <p className="font-medium text-foreground">{data.period}</p>
-                    <p className="text-sm text-muted-foreground">{data.orders} orders</p>
-                  </div>
-                  <div className="text-right">
-                    <p className="font-medium text-foreground">${data.revenue.toLocaleString()}</p>
-                    <p className="text-sm text-muted-foreground">Avg: ${data.avgOrder}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
           )}
         </Card>
 
         <Card className="dashboard-card">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-foreground">Top Selling Items</h3>
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold">Top Items (7 Days)</h3>
             <Button
               variant="ghost"
-              size="sm"
               onClick={() => setShowTopItemsChart(!showTopItemsChart)}
-              className="gap-2"
+              size="sm"
             >
-              {showTopItemsChart ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              {showTopItemsChart ? 'Hide Chart' : 'View Chart'}
+              {showTopItemsChart ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+              {showTopItemsChart ? "Hide" : "Show"}
             </Button>
           </div>
-          
-          {showTopItemsChart ? (
+          {showTopItemsChart && (
             <ResponsiveContainer width="100%" height={300}>
               <PieChart>
                 <Pie
                   data={topItems}
+                  dataKey="revenue"
+                  nameKey="name"
                   cx="50%"
                   cy="50%"
-                  labelLine={false}
-                  label={({ name, revenue }) => `${name}: $${revenue}`}
                   outerRadius={100}
-                  fill="#8884d8"
-                  dataKey="revenue"
+                  label={({ name, revenue }) => `${name}`}
                 >
-                  {topItems.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  {topItems.map((_, i) => (
+                    <Cell key={i} fill={COLORS[i % COLORS.length]} />
                   ))}
                 </Pie>
                 <Tooltip />
               </PieChart>
             </ResponsiveContainer>
-          ) : (
-            <div className="space-y-4">
-              {topItems.map((item, index) => (
-                <div key={index} className="flex items-center justify-between py-2">
-                  <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center text-sm font-medium text-primary">
-                      {index + 1}
-                    </div>
-                    <div>
-                      <p className="font-medium text-foreground">{item.name}</p>
-                      <p className="text-sm text-muted-foreground">{item.orders} orders</p>
-                    </div>
-                  </div>
-                  <p className="font-medium text-foreground">${item.revenue.toLocaleString()}</p>
-                </div>
-              ))}
-            </div>
           )}
-        </Card>
-      </div>
-
-      {/* Additional Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="dashboard-card">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-foreground">Peak Hours</h3>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowPeakHoursChart(!showPeakHoursChart)}
-              className="gap-2"
-            >
-              {showPeakHoursChart ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
-              {showPeakHoursChart ? 'Hide Chart' : 'View Chart'}
-            </Button>
-          </div>
-          
-          {showPeakHoursChart ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={peakHours}>
-                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-                <XAxis dataKey="hour" stroke="hsl(var(--muted-foreground))" />
-                <YAxis stroke="hsl(var(--muted-foreground))" />
-                <Tooltip 
-                  contentStyle={{ 
-                    backgroundColor: 'hsl(var(--card))', 
-                    border: '1px solid hsl(var(--border))',
-                    borderRadius: '0.5rem'
-                  }} 
-                />
-                <Bar dataKey="orders" fill="hsl(var(--primary))" />
-              </BarChart>
-            </ResponsiveContainer>
-          ) : (
-            <div className="space-y-4">
-              {peakHours.map((hour, index) => (
-                <div key={index} className="flex items-center justify-between py-2">
-                  <div className="flex items-center gap-3">
-                    <Calendar className="w-4 h-4 text-muted-foreground" />
-                    <span className="font-medium text-foreground">{hour.hour}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
-                        className="h-full bg-primary rounded-full"
-                        style={{ width: `${(hour.orders / 50) * 100}%` }}
-                      />
-                    </div>
-                    <span className="text-sm font-medium text-foreground">{hour.orders}</span>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </Card>
-
-        <Card className="dashboard-card">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-foreground">Performance Summary</h3>
-          </div>
-          <div className="space-y-6">
-            <div className="text-center p-6 bg-success/10 rounded-lg">
-              <TrendingUp className="w-8 h-8 text-success mx-auto mb-2" />
-              <h4 className="text-lg font-semibold text-foreground">Revenue Growth</h4>
-              <p className="text-2xl font-bold text-success">+18.2%</p>
-              <p className="text-sm text-muted-foreground">vs last month</p>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-primary/10 rounded-lg">
-                <Users className="w-6 h-6 text-primary mx-auto mb-2" />
-                <p className="text-sm font-medium text-foreground">New Customers</p>
-                <p className="text-xl font-bold text-primary">127</p>
-              </div>
-              <div className="text-center p-4 bg-amber-100 rounded-lg">
-                <Activity className="w-6 h-6 text-amber-600 mx-auto mb-2" />
-                <p className="text-sm font-medium text-foreground">Avg Service Time</p>
-                <p className="text-xl font-bold text-amber-600">18m</p>
-              </div>
-            </div>
-          </div>
         </Card>
       </div>
     </div>
