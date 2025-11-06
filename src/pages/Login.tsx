@@ -8,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    storeName: "",
     username: "",
     password: "",
   });
@@ -30,9 +29,6 @@ const Login = () => {
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
 
-    if (!formData.storeName.trim()) {
-      newErrors.storeName = "Tên cửa hàng không được để trống";
-    }
     if (!formData.username.trim()) {
       newErrors.username = "Tên đăng nhập không được để trống";
     }
@@ -64,7 +60,6 @@ const Login = () => {
         body: JSON.stringify({
           username: formData.username,
           password: formData.password,
-          storeName: formData.storeName,
         }),
       });
 
@@ -106,15 +101,6 @@ const Login = () => {
         <div className="auth-card">
           <form onSubmit={handleSubmit} className="space-y-6">
             <FloatingInput
-              name="storeName"
-              type="text"
-              label="Tên cửa hàng"
-              value={formData.storeName}
-              onChange={handleInputChange}
-              error={errors.storeName}
-            />
-
-            <FloatingInput
               name="username"
               type="text"
               label="Tên đăng nhập"
@@ -140,10 +126,6 @@ const Login = () => {
           </form>
 
           <div className="pt-4">
-            <LoadingButton type="submit" loading={loading}>
-              Đăng nhập
-            </LoadingButton>
-
             {/* 🔥 Nút đăng nhập OTP Firebase */}
             <button
               type="button"
