@@ -1,4 +1,4 @@
-// OrderCard component (đã chỉnh sửa với nút ">>" bên phải và bố cục mới)
+// OrderCard component (đã sửa với màu sắc cụ thể)
 import React from 'react';
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,7 +19,7 @@ interface OrderCardProps {
     onCancelOutOfStock?: (ticket: KitchenTicket) => void;
     onRollback?: (ticket: KitchenTicket) => void;
     onServeOneUnit?: (orderDetailId: number) => void;
-    onServeAllUnits?: (orderDetailId: number) => void; // Thêm prop mới cho nút ">>"
+    onServeAllUnits?: (orderDetailId: number) => void;
 }
 
 export const OrderCard: React.FC<OrderCardProps> = ({
@@ -36,10 +36,9 @@ export const OrderCard: React.FC<OrderCardProps> = ({
     onCancelOutOfStock,
     onRollback,
     onServeOneUnit,
-    onServeAllUnits, // Nhận prop mới
+    onServeAllUnits,
 }) => {
     const isPending = type === 'pending';
-    const buttonColor = isPending ? "pink" : "green";
 
     return (
         <div className={[
@@ -110,14 +109,14 @@ export const OrderCard: React.FC<OrderCardProps> = ({
                                     <Button
                                         variant="outline"
                                         size="icon"
-                                        className={`rounded-full border-${buttonColor}-500 text-${buttonColor}-500 hover:bg-${buttonColor}-500 hover:text-white h-8 w-8 flex-shrink-0`}
+                                        className="rounded-full border-pink-500 text-pink-500 hover:bg-pink-500 hover:text-white h-8 w-8 flex-shrink-0"
                                         onClick={() => onCompleteOneUnit?.(ticket.orderDetailId)}
                                     >
                                         <ChevronRight className="h-4 w-4" />
                                     </Button>
                                     <Button
                                         size="icon"
-                                        className={`rounded-full bg-${buttonColor}-500 hover:bg-${buttonColor}-600 text-white h-8 w-8 flex-shrink-0`}
+                                        className="rounded-full bg-pink-500 hover:bg-pink-600 text-white h-8 w-8 flex-shrink-0"
                                         onClick={() => onCompleteAllUnits?.(ticket.orderDetailId)}
                                     >
                                         <ChevronsRight className="h-4 w-4" />
