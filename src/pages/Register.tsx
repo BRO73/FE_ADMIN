@@ -12,19 +12,21 @@ const Register = () => {
     username: "",
     password: "",
     confirmPassword: "",
-    email: "",
-    phone: "",
+    role: "WAITSTAFF", // mặc định
   });
+
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const { toast } = useToast();
 
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleInputChange = (
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+  ) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
-    // Clear error when user starts typing
+    setFormData((prev) => ({ ...prev, [name]: value }));
+
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: "" }));
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
@@ -49,12 +51,6 @@ const Register = () => {
     } else if (formData.password !== formData.confirmPassword) {
       newErrors.confirmPassword = "Mật khẩu xác nhận không khớp";
     }
-    if (formData.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.email)) {
-      newErrors.email = "Email không hợp lệ";
-    }
-    if (formData.phone && !/^[0-9]{10,11}$/.test(formData.phone.replace(/[^\d]/g, ''))) {
-      newErrors.phone = "Số điện thoại không hợp lệ";
-    }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -62,24 +58,48 @@ const Register = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    if (!validateForm()) {
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
-    
-    // Simulate API call
     try {
-      await new Promise(resolve => setTimeout(resolve, 2500));
-      toast({
-        title: "Đăng ký thành công!",
-        description: `Chào mừng ${formData.username} gia nhập KiotViet.`,
+      const response = await fetch("http://localhost:8082/api/auth/register", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        // ✅ KHÔNG GỬI confirmPassword
+        body: JSON.stringify({
+          username: formData.username,
+          password: formData.password,
+          storeName: formData.storeName,
+          role: formData.role,
+        }),
       });
-    } catch (error) {
+
+      if (!response.ok) {
+        const errData = await response.json();
+        throw new Error(errData.message || "Đăng ký thất bại");
+      }
+
+      const data = await response.json();
+
+      toast({
+        title: "🎉 Đăng ký thành công!",
+        description: data.message || `Chào mừng ${formData.username} gia nhập hệ thống.`,
+      });
+
+      // reset form sau khi đăng ký
+      setFormData({
+        storeName: "",
+        username: "",
+        password: "",
+        confirmPassword: "",
+        role: "WAITSTAFF",
+      });
+    } catch (error: any) {
       toast({
         title: "Đăng ký thất bại",
-        description: "Có lỗi xảy ra, vui lòng thử lại sau.",
+        description: error.message || "Có lỗi xảy ra, vui lòng thử lại sau.",
         variant: "destructive",
       });
     } finally {
@@ -91,7 +111,7 @@ const Register = () => {
     <div className="min-h-screen bg-background flex flex-col items-center justify-center p-3 sm:p-4">
       <div className="w-full max-w-md">
         <AuthHeader />
-        
+
         <div className="auth-card">
           <form onSubmit={handleSubmit} className="space-y-6">
             <FloatingInput
@@ -130,30 +150,23 @@ const Register = () => {
               error={errors.confirmPassword}
             />
 
-            <FloatingInput
-              name="email"
-              type="email"
-              label="Email (tùy chọn)"
-              value={formData.email}
-              onChange={handleInputChange}
-              error={errors.email}
-            />
-
-            <FloatingInput
-              name="phone"
-              type="tel"
-              label="Số điện thoại (tùy chọn)"
-              value={formData.phone}
-              onChange={handleInputChange}
-              error={errors.phone}
-              placeholder="0123456789"
-            />
+            <div className="space-y-1">
+              <label className="block text-sm font-medium">Vai trò</label>
+              <select
+                name="role"
+                value={formData.role}
+                onChange={handleInputChange}
+                className="w-full border rounded-md p-2 focus:ring focus:ring-primary focus:outline-none"
+              >
+                <option value="ADMIN">ADMIN</option>
+                <option value="WAITSTAFF">WAITSTAFF</option>
+                <option value="KITCHEN_STAFF">KITCHEN_STAFF</option>
+                <option value="CASHIER">CASHIER</option>
+              </select>
+            </div>
 
             <div className="pt-4">
-              <LoadingButton
-                type="submit"
-                loading={loading}
-              >
+              <LoadingButton type="submit" loading={loading}>
                 Đăng ký
               </LoadingButton>
             </div>
