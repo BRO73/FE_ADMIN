@@ -17,4 +17,11 @@ const api = axios.create({
         return config;
     });
 
+export function getApiOrigin(): string {
+    const raw = (api.defaults.baseURL ?? "").trim();
+    if (!raw) return "http://localhost:8082"; // fallback an toàn
+    const noTrail = raw.replace(/\/+$/, "");
+    return noTrail.endsWith("/api") ? noTrail.slice(0, -4) : noTrail;
+}
+
     export default api;

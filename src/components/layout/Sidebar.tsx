@@ -10,8 +10,7 @@ import {
   BarChart3,
   CreditCard,
   ListChecks,
-  X,
-  UserCircle
+  X
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -23,7 +22,6 @@ interface SidebarProps {
 const navigationItems = [
   { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
   { name: "Table Management", href: "/admin/tables", icon: Table },
-  { name: "Customer Management", href: "/admin/customers", icon: UserCircle },
   { name: "Staff Management", href: "/admin/staff", icon: Users },
   { name: "Menu Management", href: "/admin/menu", icon: ChefHat },
   { name: "Menu Availability", href: "/admin/menu-availability", icon: ListChecks },
@@ -32,7 +30,6 @@ const navigationItems = [
   { name: "Promotions", href: "/admin/promotions", icon: Megaphone },
   { name: "Reports", href: "/admin/reports", icon: BarChart3 },
   { name: "Transactions", href: "/admin/transactions", icon: CreditCard },
-  { name: "Table Map", href: "/admin/tablemap", icon: CreditCard },
 ];
 
 const Sidebar = ({ collapsed, onToggle }: SidebarProps) => {
