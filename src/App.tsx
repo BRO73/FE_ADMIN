@@ -25,8 +25,8 @@ import FirebaseOtpLogin from "@/components/login/FirebaseOtpLogin";
 import CustomerManagementPage from "./pages/CustomerManagementPage";
 
 
-import KitchenDashboardPage from "./pages/KitchenDashboardPage";
 import MenuAvailabilityPage from "./pages/MenuAvailabilityPage";
+import KitchenDashboardPage from "./pages/KitchenDashboardPage";
 
 
 const queryClient = new QueryClient();
