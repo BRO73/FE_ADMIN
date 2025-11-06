@@ -7,12 +7,32 @@ import {
   Calendar,
   Download,
   BarChart3,
-  PieChart,
-  Activity
+  Activity,
+  ChevronDown,
+  ChevronUp
 } from "lucide-react";
+import { useState } from "react";
+import {
+  PieChart,
+  Pie,
+  BarChart,
+  Bar,
+  Cell,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer
+} from "recharts";
 import MetricCard from "@/components/ui/MetricCard";
 
 const ReportsPage = () => {
+  const [showSalesChart, setShowSalesChart] = useState(false);
+  const [showTopItemsChart, setShowTopItemsChart] = useState(false);
+  const [showPeakHoursChart, setShowPeakHoursChart] = useState(false);
+
+  const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3))', 'hsl(var(--chart-4))', 'hsl(var(--chart-5))'];
+
   // Mock data for demonstration
   const salesData = [
     { period: "Today", revenue: 2847, orders: 42, avgOrder: 67.79 },
@@ -111,51 +131,103 @@ const ReportsPage = () => {
         <Card className="dashboard-card">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-foreground">Sales Overview</h3>
-            <Button variant="ghost" size="sm">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              View Chart
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowSalesChart(!showSalesChart)}
+              className="gap-2"
+            >
+              {showSalesChart ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showSalesChart ? 'Hide Chart' : 'View Chart'}
             </Button>
           </div>
-          <div className="space-y-4">
-            {salesData.map((data, index) => (
-              <div key={index} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <div className="flex-1">
-                  <p className="font-medium text-foreground">{data.period}</p>
-                  <p className="text-sm text-muted-foreground">{data.orders} orders</p>
+          
+          {showSalesChart ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={salesData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="period" stroke="hsl(var(--muted-foreground))" />
+                <YAxis stroke="hsl(var(--muted-foreground))" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '0.5rem'
+                  }} 
+                />
+                <Bar dataKey="revenue" fill="hsl(var(--primary))" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="space-y-4">
+              {salesData.map((data, index) => (
+                <div key={index} className="flex items-center justify-between py-2 border-b border-border last:border-0">
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground">{data.period}</p>
+                    <p className="text-sm text-muted-foreground">{data.orders} orders</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-medium text-foreground">${data.revenue.toLocaleString()}</p>
+                    <p className="text-sm text-muted-foreground">Avg: ${data.avgOrder}</p>
+                  </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-medium text-foreground">${data.revenue.toLocaleString()}</p>
-                  <p className="text-sm text-muted-foreground">Avg: ${data.avgOrder}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         <Card className="dashboard-card">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-foreground">Top Selling Items</h3>
-            <Button variant="ghost" size="sm">
-              <PieChart className="w-4 h-4 mr-2" />
-              View Chart
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowTopItemsChart(!showTopItemsChart)}
+              className="gap-2"
+            >
+              {showTopItemsChart ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showTopItemsChart ? 'Hide Chart' : 'View Chart'}
             </Button>
           </div>
-          <div className="space-y-4">
-            {topItems.map((item, index) => (
-              <div key={index} className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center text-sm font-medium text-primary">
-                    {index + 1}
+          
+          {showTopItemsChart ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={topItems}
+                  cx="50%"
+                  cy="50%"
+                  labelLine={false}
+                  label={({ name, revenue }) => `${name}: $${revenue}`}
+                  outerRadius={100}
+                  fill="#8884d8"
+                  dataKey="revenue"
+                >
+                  {topItems.map((entry, index) => (
+                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                  ))}
+                </Pie>
+                <Tooltip />
+              </PieChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="space-y-4">
+              {topItems.map((item, index) => (
+                <div key={index} className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center text-sm font-medium text-primary">
+                      {index + 1}
+                    </div>
+                    <div>
+                      <p className="font-medium text-foreground">{item.name}</p>
+                      <p className="text-sm text-muted-foreground">{item.orders} orders</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-foreground">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">{item.orders} orders</p>
-                  </div>
+                  <p className="font-medium text-foreground">${item.revenue.toLocaleString()}</p>
                 </div>
-                <p className="font-medium text-foreground">${item.revenue.toLocaleString()}</p>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
       </div>
 
@@ -164,30 +236,54 @@ const ReportsPage = () => {
         <Card className="dashboard-card">
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-semibold text-foreground">Peak Hours</h3>
-            <Button variant="ghost" size="sm">
-              <Activity className="w-4 h-4 mr-2" />
-              View Details
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowPeakHoursChart(!showPeakHoursChart)}
+              className="gap-2"
+            >
+              {showPeakHoursChart ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {showPeakHoursChart ? 'Hide Chart' : 'View Chart'}
             </Button>
           </div>
-          <div className="space-y-4">
-            {peakHours.map((hour, index) => (
-              <div key={index} className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-3">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium text-foreground">{hour.hour}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary rounded-full"
-                      style={{ width: `${(hour.orders / 50) * 100}%` }}
-                    />
+          
+          {showPeakHoursChart ? (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={peakHours}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="hour" stroke="hsl(var(--muted-foreground))" />
+                <YAxis stroke="hsl(var(--muted-foreground))" />
+                <Tooltip 
+                  contentStyle={{ 
+                    backgroundColor: 'hsl(var(--card))', 
+                    border: '1px solid hsl(var(--border))',
+                    borderRadius: '0.5rem'
+                  }} 
+                />
+                <Bar dataKey="orders" fill="hsl(var(--primary))" />
+              </BarChart>
+            </ResponsiveContainer>
+          ) : (
+            <div className="space-y-4">
+              {peakHours.map((hour, index) => (
+                <div key={index} className="flex items-center justify-between py-2">
+                  <div className="flex items-center gap-3">
+                    <Calendar className="w-4 h-4 text-muted-foreground" />
+                    <span className="font-medium text-foreground">{hour.hour}</span>
                   </div>
-                  <span className="text-sm font-medium text-foreground">{hour.orders}</span>
+                  <div className="flex items-center gap-2">
+                    <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
+                      <div 
+                        className="h-full bg-primary rounded-full"
+                        style={{ width: `${(hour.orders / 50) * 100}%` }}
+                      />
+                    </div>
+                    <span className="text-sm font-medium text-foreground">{hour.orders}</span>
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
         </Card>
 
         <Card className="dashboard-card">
