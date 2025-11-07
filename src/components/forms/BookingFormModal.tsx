@@ -65,7 +65,6 @@ const BookingFormModal = ({ isOpen, onClose, onSubmit, booking, mode }: BookingF
     const { toast } = useToast();
     const { getTableByDay,tables, loading: tablesLoading } = useTables();
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [date, setDate] = useState<Date | undefined>(new Date());
 
     const form = useForm<BookingFormData>({
         resolver: zodResolver(bookingSchema),
