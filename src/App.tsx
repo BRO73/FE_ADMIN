@@ -18,22 +18,27 @@ import TableMapEditor from "@/pages/TableMapEditor.tsx";
 import NotFound from "@/pages/NotFound.tsx";
 import Login from "@/pages/Login.tsx";
 import Register from "@/pages/Register.tsx";
-import FoodDetail from "./pages/FoodDetail";
 import CartItem from "./pages/CartItem";
 import MenuPage from "./pages/MenuPage";
 import FirebaseOtpLogin from "@/components/login/FirebaseOtpLogin";
 import CustomerManagementPage from "./pages/CustomerManagementPage";
-
-
+import TableManagement from "./pages/TableManagement";
 import KitchenDashboardPage from "./pages/KitchenDashboardPage";
-import MenuAvailabilityPage from "./pages/MenuAvailabilityPage";
+import LiveOrderPage from "./pages/LiveOrderPage";
+import MenuOrderPage from "./pages/MenuOrderPage";
 
+
+import MenuAvailabilityPage from "./pages/MenuAvailabilityPage";
+import KitchenDashboardPage from "./pages/KitchenDashboardPage";
 
 const queryClient = new QueryClient();
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
-    <ThemeProvider defaultTheme="system" storageKey="restaurant-dashboard-theme">
+    <ThemeProvider
+      defaultTheme="system"
+      storageKey="restaurant-dashboard-theme"
+    >
       <TooltipProvider>
         <Toaster />
         <Sonner />
@@ -46,25 +51,26 @@ const App = () => (
             <Route path="/cart" element={<CartItem />} />
             <Route path="/" element={<Navigate to="/admin" replace />} />
             <Route path="/otp-login" element={<FirebaseOtpLogin />} />
-
-              <Route path="kitchen" element={<KitchenDashboardPage />} />
-
+            <Route path="kitchen" element={<KitchenDashboardPage />} />
+            <Route path="/tables" element={<TableManagement />} />
+            <Route path="/live-order" element={<LiveOrderPage />} />
+            <Route path="/menu-order" element={<MenuOrderPage />} />
             <Route path="/admin" element={<DashboardLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="tables" element={<TableManagementPage />} />
               <Route path="customers" element={<CustomerManagementPage />} />
               <Route path="staff" element={<StaffManagementPage />} />
               <Route path="menu" element={<MenuManagementPage />} />
-                <Route path="menu-availability" element={<MenuAvailabilityPage />} />
+              <Route
+                path="menu-availability"
+                element={<MenuAvailabilityPage />}
+              />
               <Route path="bookings" element={<BookingManagementPage />} />
               <Route path="feedback" element={<FeedbackPage />} />
               <Route path="promotions" element={<PromotionPage />} />
               <Route path="reports" element={<ReportsPage />} />
               <Route path="transactions" element={<TransactionsPage />} />
               <Route path="tablemap" element={<TableMapEditor />} />
-
-
-
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
