@@ -1,5 +1,5 @@
 // hooks/useCart.ts
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
 export interface CartItem {
   id: number;
@@ -8,9 +8,10 @@ export interface CartItem {
   quantity: number;
   imageUrl: string;
   description: string;
+  note?: string; // Thêm trường note
 }
 
-const CART_STORAGE_KEY = 'cart';
+const CART_STORAGE_KEY = "cart";
 
 export const useCart = () => {
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -28,7 +29,7 @@ export const useCart = () => {
           setCartItems(parsedCart);
         }
       } catch (error) {
-        console.error('Error parsing cart from localStorage:', error);
+        console.error("Error parsing cart from localStorage:", error);
         setCartItems([]);
       }
     }
@@ -38,30 +39,41 @@ export const useCart = () => {
   // Save cart to localStorage and increment version
   useEffect(() => {
     if (!isInitialized) return;
-    
+
     localStorage.setItem(CART_STORAGE_KEY, JSON.stringify(cartItems));
     // Tăng version để trigger re-render ở các component sử dụng hook
-    setCartVersion(prev => prev + 1);
+    setCartVersion((prev) => prev + 1);
   }, [cartItems, isInitialized]);
 
-  const addToCart = (item: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
-    setCartItems(prevItems => {
-      const existingItem = prevItems.find(cartItem => cartItem.id === item.id);
-      
+  // Cập nhật hàm addToCart để hỗ trợ note
+  const addToCart = (
+    item: Omit<CartItem, "quantity">,
+    quantity: number = 1,
+    note?: string
+  ) => {
+    setCartItems((prevItems) => {
+      const existingItem = prevItems.find(
+        (cartItem) => cartItem.id === item.id
+      );
+
       if (existingItem) {
-        return prevItems.map(cartItem =>
+        return prevItems.map((cartItem) =>
           cartItem.id === item.id
-            ? { ...cartItem, quantity: cartItem.quantity + quantity }
+            ? {
+                ...cartItem,
+                quantity: cartItem.quantity + quantity,
+                note: note !== undefined ? note : cartItem.note, // Cập nhật note nếu được cung cấp
+              }
             : cartItem
         );
       } else {
-        return [...prevItems, { ...item, quantity }];
+        return [...prevItems, { ...item, quantity, note }];
       }
     });
   };
 
   const removeFromCart = (id: number) => {
-    setCartItems(prevItems => prevItems.filter(item => item.id !== id));
+    setCartItems((prevItems) => prevItems.filter((item) => item.id !== id));
   };
 
   const updateQuantity = (id: number, quantity: number) => {
@@ -69,11 +81,9 @@ export const useCart = () => {
       removeFromCart(id);
       return;
     }
-    
-    setCartItems(prevItems =>
-      prevItems.map(item =>
-        item.id === id ? { ...item, quantity } : item
-      )
+
+    setCartItems((prevItems) =>
+      prevItems.map((item) => (item.id === id ? { ...item, quantity } : item))
     );
   };
 
@@ -87,7 +97,10 @@ export const useCart = () => {
   };
 
   const getTotalPrice = () => {
-    return cartItems.reduce((total, item) => total + (item.price * item.quantity), 0);
+    return cartItems.reduce(
+      (total, item) => total + item.price * item.quantity,
+      0
+    );
   };
 
   const handleCheckout = () => {
@@ -110,6 +123,6 @@ export const useCart = () => {
     showOrderSuccess,
     handleCheckout,
     closeOrderSuccess,
-    cartVersion, // Trả về cartVersion để component có thể subscribe
+    cartVersion,
   };
 };
