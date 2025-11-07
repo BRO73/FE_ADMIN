@@ -56,3 +56,8 @@ export const getTablesByStatus = async (
   const { data } = await api.get<TableResponse[]>(`/tables/status/${status}`);
   return data.map(mapToTable);
 };
+
+export  const getTableStatusByDay = async (date: string) => {
+    const { data } = await api.get<TableResponse[]>(`/tables/day/${date}`);
+    return data.map(mapToTable);
+}
