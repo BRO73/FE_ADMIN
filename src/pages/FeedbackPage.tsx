@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, Star, MessageSquare, Calendar, Plus, Trash2, Edit } from "lucide-react";
+import { Search, Star, MessageSquare, Calendar, Plus, Trash2, Edit, Filter, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -27,6 +27,7 @@ const FeedbackPage = () => {
   const [formMode, setFormMode] = useState<"add" | "edit">("add");
   const [selectedFeedback, setSelectedFeedback] = useState<ReviewResponse | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   // ===============================
   // FETCH DATA
@@ -72,40 +73,37 @@ const FeedbackPage = () => {
   };
 
   const handleFormSubmit = async (data: ReviewRequest) => {
-  setIsSubmitting(true);
-  try {
-    if (formMode === "add") {
-      const newReview = await createReview(data);
-      setFeedback((prev) => [...prev, newReview]); // thêm review mới vào danh sách
+    setIsSubmitting(true);
+    try {
+      if (formMode === "add") {
+        const newReview = await createReview(data);
+        setFeedback((prev) => [...prev, newReview]);
+        toast({
+          title: "Review Added",
+          description: "Feedback has been created successfully.",
+        });
+      } else if (formMode === "edit" && selectedFeedback) {
+        const updatedReview = await updateReview(selectedFeedback.id, data);
+        setFeedback((prev) =>
+          prev.map((item) => (item.id === updatedReview.id ? updatedReview : item))
+        );
+        toast({
+          title: "Review Updated",
+          description: "Feedback has been updated successfully.",
+        });
+      }
+      setIsFormModalOpen(false);
+      setSelectedFeedback(undefined);
+    } catch {
       toast({
-        title: "Review Added",
-        description: "Feedback has been created successfully.",
+        title: "Error",
+        description: "Failed to save feedback.",
+        variant: "destructive",
       });
-    } else if (formMode === "edit" && selectedFeedback) {
-      const updatedReview = await updateReview(selectedFeedback.id, data);
-      setFeedback((prev) =>
-        prev.map((item) => (item.id === updatedReview.id ? updatedReview : item))
-      ); // cập nhật lại ngay review vừa sửa
-      toast({
-        title: "Review Updated",
-        description: "Feedback has been updated successfully.",
-      });
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // đóng modal và reset trạng thái
-    setIsFormModalOpen(false);
-    setSelectedFeedback(undefined);
-  } catch {
-    toast({
-      title: "Error",
-      description: "Failed to save feedback.",
-      variant: "destructive",
-    });
-  } finally {
-    setIsSubmitting(false);
-  }
-};
-
+  };
 
   const handleDeleteConfirm = async () => {
     if (!selectedFeedback) return;
@@ -146,11 +144,13 @@ const FeedbackPage = () => {
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
-          className={`w-4 h-4 ${star <= rating ? "fill-yellow-400 text-yellow-400" : "text-gray-300"
-            }`}
+          className={`w-4 h-4 ${
+            star <= rating 
+              ? "fill-yellow-400 text-yellow-400" 
+              : "text-gray-300"
+          }`}
         />
       ))}
-      <span className="ml-2 text-sm font-medium">{rating}/5</span>
     </div>
   );
 
@@ -168,11 +168,28 @@ const FeedbackPage = () => {
     return distribution;
   };
 
+  const clearFilters = () => {
+    setSearchTerm("");
+    setSelectedRating("all");
+  };
+
+  const getRatingColor = (rating: number) => {
+    if (rating >= 4) return "text-green-600 bg-green-50 border-green-200";
+    if (rating >= 3) return "text-yellow-600 bg-yellow-50 border-yellow-200";
+    return "text-red-600 bg-red-50 border-red-200";
+  };
+
+  const getRatingText = (rating: number) => {
+    if (rating >= 4) return "Excellent";
+    if (rating >= 3) return "Good";
+    return "Needs Improvement";
+  };
+
   // ===============================
   // RENDER
   // ===============================
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -181,36 +198,38 @@ const FeedbackPage = () => {
             View and manage customer reviews submitted after orders.
           </p>
         </div>
-        <Button onClick={handleAddFeedback} className="btn-primary">
+        <Button onClick={handleAddFeedback} className="bg-blue-600 hover:bg-blue-700 text-white">
           <Plus className="w-4 h-4 mr-2" /> Add Feedback
         </Button>
       </div>
 
-      {/* Summary */}
+      {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="dashboard-card">
+        <Card className="p-6 border-l-4 border-l-yellow-400 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Average Rating</p>
-              <p className="text-2xl font-bold text-foreground">{getAverageRating()}</p>
+              <p className="text-2xl font-bold text-foreground">{getAverageRating()}<span className="text-lg text-muted-foreground">/5</span></p>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
               <Star className="w-6 h-6 text-yellow-600" />
             </div>
           </div>
         </Card>
-        <Card className="dashboard-card">
+
+        <Card className="p-6 border-l-4 border-l-blue-400 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Total Reviews</p>
               <p className="text-2xl font-bold text-foreground">{filteredFeedback.length}</p>
             </div>
-            <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center">
-              <MessageSquare className="w-6 h-6 text-primary" />
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <MessageSquare className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </Card>
-        <Card className="dashboard-card">
+
+        <Card className="p-6 border-l-4 border-l-green-400 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">5-Star Reviews</p>
@@ -223,97 +242,197 @@ const FeedbackPage = () => {
             </div>
           </div>
         </Card>
+
+        <Card className="p-6 border-l-4 border-l-purple-400 hover:shadow-lg transition-shadow">
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-muted-foreground">Active Filters</p>
+              <p className="text-2xl font-bold text-foreground">
+                {selectedRating !== "all" || searchTerm ? "1" : "0"}
+              </p>
+            </div>
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Filter className="w-6 h-6 text-purple-600" />
+            </div>
+          </div>
+        </Card>
       </div>
 
       {/* Search + Filter */}
-      <Card className="dashboard-card">
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-            <Input
-              placeholder="Search feedback by comment..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-          <div className="flex gap-2 flex-wrap">
-            {ratings.map((rating) => (
+      <Card className="p-6 hover:shadow-lg transition-shadow">
+        <div className="flex flex-col gap-4">
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              <Input
+                placeholder="Search feedback by comment..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex gap-2">
               <Button
-                key={rating}
-                variant={selectedRating === rating ? "default" : "outline"}
-                size="sm"
-                onClick={() => setSelectedRating(rating)}
+                variant="outline"
+                onClick={() => setShowFilters(!showFilters)}
+                className="flex items-center gap-2 border-blue-300 text-blue-700 hover:bg-blue-50"
               >
-                {rating === "all" ? "All Ratings" : `${rating} Stars`}
+                <Filter className="w-4 h-4" />
+                Filters
+                {(selectedRating !== "all" || searchTerm) && (
+                  <Badge variant="secondary" className="ml-1 bg-blue-500">1</Badge>
+                )}
               </Button>
-            ))}
+              {(selectedRating !== "all" || searchTerm) && (
+                <Button
+                  variant="ghost"
+                  onClick={clearFilters}
+                  className="text-muted-foreground hover:text-foreground hover:bg-gray-100"
+                >
+                  <X className="w-4 h-4 mr-1" />
+                  Clear
+                </Button>
+              )}
+            </div>
           </div>
+
+          {showFilters && (
+            <div className="border-t pt-4">
+              <p className="text-sm font-medium text-muted-foreground mb-3">Filter by Rating:</p>
+              <div className="flex gap-2 flex-wrap">
+                {ratings.map((rating) => (
+                  <Button
+                    key={rating}
+                    variant={selectedRating === rating ? "default" : "outline"}
+                    size="sm"
+                    onClick={() => setSelectedRating(rating)}
+                    className={selectedRating === rating ? "bg-blue-600" : ""}
+                  >
+                    {rating === "all" ? "All Ratings" : `${rating} Stars`}
+                  </Button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
       </Card>
 
       {/* Feedback List */}
       <div className="space-y-4">
         {loading ? (
-          <p className="text-center text-muted-foreground py-8">Loading reviews...</p>
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+            <p className="text-muted-foreground">Loading reviews...</p>
+          </div>
         ) : filteredFeedback.length === 0 ? (
-          <Card className="dashboard-card">
-            <div className="text-center py-12">
-              <MessageSquare className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-              <h3 className="text-lg font-semibold text-foreground mb-2">No feedback found</h3>
-              <p className="text-muted-foreground">
-                No feedback matches your current filters.
-              </p>
-            </div>
+          <Card className="p-12 text-center hover:shadow-lg transition-shadow">
+            <MessageSquare className="w-16 h-16 text-muted-foreground mx-auto mb-4" />
+            <h3 className="text-xl font-semibold text-foreground mb-2">No feedback found</h3>
+            <p className="text-muted-foreground mb-6">
+              {searchTerm || selectedRating !== "all" 
+                ? "No reviews match your current filters." 
+                : "No feedback available yet."
+              }
+            </p>
+            {!searchTerm && selectedRating === "all" && (
+              <Button onClick={handleAddFeedback} className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="w-4 h-4 mr-2" /> Add First Review
+              </Button>
+            )}
           </Card>
         ) : (
           filteredFeedback.map((item) => (
-            <Card key={item.id} className="dashboard-card">
-              <div className="flex flex-col lg:flex-row lg:items-start gap-4">
-                <div className="flex-shrink-0 lg:w-64">
-                  <div className="flex items-center justify-between lg:flex-col lg:items-start lg:space-y-3">
-                    <div>
-                      <h4 className="font-semibold text-foreground">
-                        {item.customerName?.trim()
-                          ? item.customerName
-                          : "Khách hàng ẩn danh"}
-                      </h4>
-                      {item.customerEmail?.trim() && (
-                        <p className="text-sm text-muted-foreground">{item.customerEmail}</p>
-                      )}
-
-                      <div className="flex items-center gap-2 mt-1">
-                        <Calendar className="w-4 h-4 text-muted-foreground" />
-                        <span className="text-sm text-muted-foreground">
-                          {new Date(item.createdAt).toLocaleDateString()}
-                        </span>
-                      </div>
-                      {/* 👇 THÊM PHẦN NÀY 👇 */}
-                      <p className="text-sm text-muted-foreground mt-1">
-                        <span className="font-medium text-foreground">Order ID:</span>{" "}
-                        #{item.orderId}
-                      </p>
+            <Card key={item.id} className="p-6 hover:shadow-lg transition-shadow">
+              <div className="flex flex-col lg:flex-row lg:items-start gap-6">
+                {/* Customer Info Section */}
+                <div className="flex-shrink-0 lg:w-80">
+                  <div className="flex items-start gap-4">
+                    {/* Avatar */}
+                    <div className="w-14 h-14 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-lg shadow-lg">
+                      {item.customerName?.charAt(0) || "A"}
                     </div>
+                    
+                    <div className="flex-1">
+                      <div className="space-y-3">
+                        <div>
+                          <h4 className="font-bold text-foreground text-lg">
+                            {item.customerName?.trim() || "Anonymous Customer"}
+                          </h4>
+                          {item.customerEmail?.trim() && (
+                            <p className="text-sm text-muted-foreground mt-1">{item.customerEmail}</p>
+                          )}
+                        </div>
 
-                    <div className="lg:w-full">{renderStars(item.ratingScore)}</div>
+                        {/* Order & Date Info Box */}
+                        <div className="bg-gray-50 rounded-lg p-3 space-y-2 border">
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <Calendar className="w-4 h-4" />
+                            <span className="text-sm font-medium">
+                              {new Date(item.createdAt).toLocaleDateString('en-US', {
+                                year: 'numeric',
+                                month: 'short',
+                                day: 'numeric'
+                              })}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-muted-foreground">
+                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                            <span className="text-sm font-medium">Order #{item.orderId}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 </div>
+
+                {/* Comment & Rating Section */}
                 <div className="flex-1">
-                  <p className="text-foreground leading-relaxed">{item.comment}</p>
-                  <div className="flex items-center justify-end gap-2 mt-4">
+                  {/* Rating Header */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="bg-yellow-50 px-4 py-2 rounded-full border border-yellow-200 flex items-center gap-2">
+                        {renderStars(item.ratingScore)}
+                        <span className="text-lg font-bold text-gray-900">{item.ratingScore}.0/5</span>
+                      </div>
+                    </div>
+                    
+                    {/* Rating Status Badge */}
+                    <Badge 
+                      className={`px-3 py-1 text-sm font-medium border ${getRatingColor(item.ratingScore)}`}
+                    >
+                      {getRatingText(item.ratingScore)}
+                    </Badge>
+                  </div>
+
+                  {/* Comment Box */}
+                  <div className="bg-gradient-to-r from-gray-50 to-blue-50 border border-gray-200 rounded-xl p-4 mb-4 relative">
+                    <div className="absolute top-3 left-3 text-3xl text-gray-300">"</div>
+                    <p className="text-foreground leading-relaxed text-base pl-6">
+                      {item.comment}
+                    </p>
+                    <div className="absolute bottom-3 right-3 text-3xl text-gray-300">"</div>
+                  </div>
+
+                  {/* Action Buttons */}
+                  <div className="flex items-center justify-end gap-3">
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleEditFeedback(item)}
+                      className="border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
                     >
-                      <Edit className="w-4 h-4 mr-1" /> Edit
+                      <Edit className="w-4 h-4 mr-2" /> 
+                      Edit
                     </Button>
                     <Button
                       variant="outline"
                       size="sm"
                       onClick={() => handleDeleteFeedback(item)}
+                      className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
                     >
-                      <Trash2 className="w-4 h-4 mr-1" /> Delete
+                      <Trash2 className="w-4 h-4 mr-2" /> 
+                      Delete
                     </Button>
                   </div>
                 </div>
@@ -323,6 +442,19 @@ const FeedbackPage = () => {
         )}
       </div>
 
+      {/* Footer Stats */}
+      {filteredFeedback.length > 0 && (
+        <Card className="p-4 bg-blue-50 border-blue-200">
+          <div className="text-center">
+            <p className="text-sm text-blue-700">
+              Showing <span className="font-semibold">{filteredFeedback.length}</span> of{" "}
+              <span className="font-semibold">{feedback.length}</span> reviews
+              {selectedRating !== "all" && ` • Filtered by ${selectedRating} stars`}
+            </p>
+          </div>
+        </Card>
+      )}
+
       {/* Modals */}
       <FeedbackFormModal
         isOpen={isFormModalOpen}
@@ -330,10 +462,10 @@ const FeedbackPage = () => {
         review={
           selectedFeedback
             ? {
-              orderId: selectedFeedback.orderId,
-              ratingScore: selectedFeedback.ratingScore,
-              comment: selectedFeedback.comment,
-            }
+                orderId: selectedFeedback.orderId,
+                ratingScore: selectedFeedback.ratingScore,
+                comment: selectedFeedback.comment,
+              }
             : undefined
         }
         mode={formMode}
@@ -345,7 +477,7 @@ const FeedbackPage = () => {
         onClose={() => setIsDeleteDialogOpen(false)}
         onConfirm={handleDeleteConfirm}
         title="Delete Feedback"
-        description="Are you sure you want to delete this feedback?"
+        description="Are you sure you want to delete this feedback? This action cannot be undone."
         itemName={selectedFeedback?.id?.toString()}
         isLoading={isSubmitting}
       />

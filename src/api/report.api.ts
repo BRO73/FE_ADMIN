@@ -19,6 +19,16 @@ export interface DailyReport {
   customerVisits: number;
 }
 
+export interface PeakHour {
+  hour: number;
+  revenue: number;
+}
+
+export interface TopCustomer {
+  name: string;
+  revenue: number;
+}
+
 // Lấy thống kê tổng theo ngày
 export const getDailyReport = async (start: string, end: string): Promise<DailyReport> => {
   const { data } = await api.get("/reports/daily", { params: { start, end } });
@@ -40,3 +50,22 @@ export const getTopItemsLast7Days = async (): Promise<TopItem[]> => {
   const { data } = await api.get("/reports/last-7-days/top-items");
   return data;
 };
+
+// 🆕 Lấy thống kê tổng hợp theo số ngày tùy chọn (ví dụ: 7, 30, 90)
+export const getSummaryReport = async (days: number): Promise<DailyReport> => {
+  const { data } = await api.get(`/reports/summary`, { params: { days } });
+  return data;
+};
+
+// ✅ Lấy top khách hàng trong N ngày
+export const getTopCustomers = async (days: number): Promise<TopCustomer[]> => {
+  const { data } = await api.get(`/reports/top-customers?days=${days}`);
+  return data;
+};
+
+// ✅ Lấy doanh thu theo giờ trong N ngày
+export const getPeakHours = async (days: number): Promise<PeakHour[]> => {
+  const { data } = await api.get(`/reports/peak-hours?days=${days}`);
+  return data;
+};
+
