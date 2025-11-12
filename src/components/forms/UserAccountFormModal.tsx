@@ -1,201 +1,108 @@
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Input } from "@/components/ui/input";
+import React, { useEffect } from "react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 
-const userAccountSchema = z.object({
-  name: z.string().min(3, "Username must be at least 3 characters").max(30, "Username too long"),
-  password: z.string().min(6, "Password must be at least 6 characters").optional().or(z.literal("")),
-  role: z.enum(["admin", "manager", "staff", "viewer"]),
-});
-
-type UserAccountFormData = z.infer<typeof userAccountSchema>;
-
-export interface UserAccount {
-  id: number;
-  name: string;
-  role: "admin" | "manager" | "staff" | "viewer";
-  createdAt: string;
+export interface UserAccountModalData {
+    id: number;
+    username: string;
+    role: string; // giữ dạng 'ROLE_*'
+    passwordText?: string | null;
 }
 
-interface UserAccountFormModalProps {
-  isOpen: boolean;
-  onClose: () => void;
-  onSubmit: (data: UserAccountFormData) => void;
-  userAccount?: UserAccount;
-  mode: "add" | "edit";
+type SubmitPayload = {
+    username: string;
+    password?: string;
+    role?: string;
+};
+
+interface Props {
+    open: boolean;
+    onOpenChange: (v: boolean) => void;
+    initial?: UserAccountModalData | null;
+    onSubmit: (payload: SubmitPayload) => void;
 }
 
-const UserAccountFormModal = ({ isOpen, onClose, onSubmit, userAccount, mode }: UserAccountFormModalProps) => {
-  const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
+const UserAccountFormModal: React.FC<Props> = ({ open, onOpenChange, initial, onSubmit }) => {
+    const [username, setUsername] = React.useState<string>("");
+    const [password, setPassword] = React.useState<string>("");
+    const [role, setRole] = React.useState<string>("ROLE_WAITER");
 
-  const form = useForm<UserAccountFormData>({
-    resolver: zodResolver(userAccountSchema),
-    defaultValues: {
-      name: "",
-      password: "",
-      role: "staff",
-    },
-  });
+    useEffect(() => {
+        if (initial) {
+            setUsername(initial.username ?? "");
+            setPassword(initial.passwordText ?? "");
+            const roleValue = initial.role?.startsWith("ROLE_") ? initial.role : `ROLE_${initial.role}`;
+            setRole(roleValue);
+        } else {
+            setUsername("");
+            setPassword("");
+            setRole("ROLE_WAITER");
+        }
+    }, [initial, open]);
 
-  useEffect(() => {
-    if (userAccount && mode === "edit") {
-      form.setValue("name", userAccount.name);
-      form.setValue("role", userAccount.role);
-      form.setValue("password", "");
-    } else if (mode === "add") {
-      form.reset({
-        name: "",
-        password: "",
-        role: "staff",
-      });
-    }
-  }, [userAccount, mode, form]);
+    const handleSave = () => {
+        const payload: SubmitPayload = { username };
+        if (password) payload.password = password;
+        if (role) payload.role = role;
+        onSubmit(payload);
+    };
 
-  const handleSubmit = async (data: UserAccountFormData) => {
-    setIsSubmitting(true);
-    try {
-      onSubmit(data);
-      toast({
-        title: mode === "add" ? "User Account Created" : "User Account Updated",
-        description: `Account for ${data.name} has been ${mode === "add" ? "created" : "updated"} successfully.`,
-      });
-      onClose();
-      form.reset();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                    <DialogTitle>Edit User Account</DialogTitle>
+                    <p className="text-sm text-muted-foreground">
+                        You can change the password or user role here.
+                    </p>
+                </DialogHeader>
 
-  const handleClose = () => {
-    form.reset();
-    onClose();
-  };
+                <div className="space-y-4">
+                    <div className="grid gap-2">
+                        <Label>Username</Label>
+                        <Input
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            placeholder="Enter username..."
+                        />
+                    </div>
 
-  return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-[425px]">
-        <DialogHeader>
-          <DialogTitle>
-            {mode === "add" ? "Create New User Account" : "Edit User Account"}
-          </DialogTitle>
-          <DialogDescription>
-            {mode === "add" 
-              ? "Create a new user account for system access."
-              : "Update the user account information. Leave password blank to keep current password."
-            }
-          </DialogDescription>
-        </DialogHeader>
+                    <div className="grid gap-2">
+                        <Label>Password</Label>
+                        <Input
+                            type="text"
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            placeholder="Enter new password..."
+                        />
+                    </div>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Username</FormLabel>
-                  <FormControl>
-                    <Input placeholder="johndoe" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+                    <div className="grid gap-2">
+                        <Label>Role</Label>
+                        <select
+                            className="border rounded-md p-2"
+                            value={role}
+                            onChange={(e) => setRole(e.target.value)}
+                        >
+                            <option value="ROLE_ADMIN">Admin</option>
+                            <option value="ROLE_WAITER">Waiter</option>
+                            <option value="ROLE_CHEF">Chef</option>
+                            <option value="ROLE_CASHIER">Cashier</option>
+                        </select>
+                    </div>
 
-            <FormField
-              control={form.control}
-              name="password"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>{mode === "add" ? "Password" : "New Password (optional)"}</FormLabel>
-                  <FormControl>
-                    <Input 
-                      type="password" 
-                      placeholder={mode === "add" ? "Enter password" : "Leave blank to keep current"}
-                      {...field} 
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Role</FormLabel>
-                  <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="admin">Admin</SelectItem>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="staff">Staff</SelectItem>
-                        <SelectItem value="viewer">Viewer</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={isSubmitting}
-              >
-                Cancel
-              </Button>
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : mode === "add" ? "Create Account" : "Update Account"}
-              </Button>
-            </DialogFooter>
-          </form>
-        </Form>
-      </DialogContent>
-    </Dialog>
-  );
+                    <div className="flex justify-end gap-2">
+                        <Button variant="outline" onClick={() => onOpenChange(false)}>
+                            Cancel
+                        </Button>
+                        <Button onClick={handleSave}>Update Account</Button>
+                    </div>
+                </div>
+            </DialogContent>
+        </Dialog>
+    );
 };
 
 export default UserAccountFormModal;
