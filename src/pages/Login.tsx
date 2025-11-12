@@ -73,7 +73,6 @@ const Login = () => {
       localStorage.setItem("accessToken", data.data.accessToken);
       localStorage.setItem("refreshToken", data.data.refreshToken);
 
-
       toast({
         title: "Đăng nhập thành công!",
         description: `Chào mừng ${formData.username} quay trở lại.`,

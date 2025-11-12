@@ -1,220 +1,401 @@
-import { Card } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { 
-  TrendingUp, 
-  DollarSign, 
-  Users, 
-  Calendar,
+import { useEffect, useState } from "react";
+import {
+  TrendingUp,
+  DollarSign,
+  Users,
   Download,
   BarChart3,
-  PieChart,
-  Activity
+  ChevronDown,
+  ChevronUp,
+  Calendar,
 } from "lucide-react";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { useToast } from "@/hooks/use-toast";
+import {
+  getDailyReport,
+  getRevenueLast7Days,
+  getTopItemsLast7Days,
+  getTopCustomers,
+  getPeakHours,
+  DailyReport,
+  RevenueDay,
+  TopItem,
+  TopCustomer,
+  PeakHour,
+} from "@/api/report.api";
+import {
+  BarChart,
+  Bar,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  XAxis,
+  YAxis,
+  PieChart,
+  Pie,
+  Cell,
+  Legend,
+} from "recharts";
 import MetricCard from "@/components/ui/MetricCard";
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+
+const COLORS = [
+  "#4F46E5", // Indigo
+  "#10B981", // Emerald
+  "#F59E0B", // Amber
+  "#EF4444", // Red
+  "#3B82F6", // Blue
+  "#8B5CF6", // Violet
+  "#14B8A6", // Teal
+];
 
 const ReportsPage = () => {
-  // Mock data for demonstration
-  const salesData = [
-    { period: "Today", revenue: 2847, orders: 42, avgOrder: 67.79 },
-    { period: "Yesterday", revenue: 2315, orders: 38, avgOrder: 60.92 },
-    { period: "This Week", revenue: 18920, orders: 287, avgOrder: 65.89 },
-    { period: "Last Week", revenue: 16745, orders: 251, avgOrder: 66.71 },
-    { period: "This Month", revenue: 89650, orders: 1342, avgOrder: 66.81 },
-    { period: "Last Month", revenue: 82340, orders: 1198, avgOrder: 68.74 },
-  ];
+  const { toast } = useToast();
+  const [timeRange, setTimeRange] = useState("7d");
+  const [dailyReport, setDailyReport] = useState<DailyReport | null>(null);
+  const [salesData, setSalesData] = useState<RevenueDay[]>([]);
+  const [topItems, setTopItems] = useState<TopItem[]>([]);
+  const [topCustomers, setTopCustomers] = useState<TopCustomer[]>([]);
+  const [peakHours, setPeakHours] = useState<PeakHour[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const topItems = [
-    { name: "Grilled Salmon", orders: 156, revenue: 4521 },
-    { name: "Caesar Salad", orders: 143, revenue: 1857 },
-    { name: "Truffle Pasta", orders: 89, revenue: 3201 },
-    { name: "Craft Beer", orders: 234, revenue: 1636 },
-    { name: "Chocolate Cake", orders: 98, revenue: 881 },
-  ];
+  const [showSalesChart, setShowSalesChart] = useState(true);
+  const [showTopItemsChart, setShowTopItemsChart] = useState(true);
+  const [showTopCustomersChart, setShowTopCustomersChart] = useState(true);
+  const [showPeakHoursChart, setShowPeakHoursChart] = useState(true);
 
-  const peakHours = [
-    { hour: "12:00 PM", orders: 28 },
-    { hour: "1:00 PM", orders: 35 },
-    { hour: "7:00 PM", orders: 42 },
-    { hour: "8:00 PM", orders: 38 },
-    { hour: "9:00 PM", orders: 31 },
-  ];
+  // 🧾 Hàm export PDF
+  const handleExportPDF = async () => {
+    try {
+      const reportSection = document.getElementById("report-content");
+      if (!reportSection) return;
 
-  const weeklyMetrics = [
+      const canvas = await html2canvas(reportSection, {
+        scale: 2,
+        backgroundColor: "#ffffff",
+        useCORS: true,
+      });
+
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+
+      pdf.text("Restaurant Report", 10, 10);
+      pdf.addImage(imgData, "PNG", 0, 15, pdfWidth, pdfHeight);
+      pdf.text(
+        `Generated: ${new Date().toLocaleString()}`,
+        10,
+        pdf.internal.pageSize.getHeight() - 10
+      );
+
+      pdf.save(`report_${new Date().toISOString().split("T")[0]}.pdf`);
+    } catch (err) {
+      toast({
+        title: "Export Failed",
+        description: "Could not generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  // 🕒 Tính khoảng thời gian
+  const calculateRange = () => {
+    const end = new Date();
+    const start = new Date();
+
+    if (timeRange === "today") start.setHours(0, 0, 0, 0);
+    else if (timeRange === "7d") start.setDate(end.getDate() - 7);
+    else if (timeRange === "30d") start.setDate(end.getDate() - 30);
+    else if (timeRange === "3m") start.setMonth(end.getMonth() - 3);
+
+    return {
+      start: start.toISOString().split(".")[0],
+      end: end.toISOString().split(".")[0],
+    };
+  };
+
+  // 📊 Fetch dữ liệu
+  const fetchData = async () => {
+    setLoading(true);
+    try {
+      const { start, end } = calculateRange();
+      const days =
+        timeRange === "today"
+          ? 1
+          : timeRange === "7d"
+          ? 7
+          : timeRange === "30d"
+          ? 30
+          : 90;
+
+      const [daily, revenue, top, customers, hours] = await Promise.all([
+        getDailyReport(start, end),
+        getRevenueLast7Days(),
+        getTopItemsLast7Days(),
+        getTopCustomers(days),
+        getPeakHours(days),
+      ]);
+
+      setDailyReport(daily);
+      setSalesData(revenue);
+      setTopItems(top);
+      setTopCustomers(customers);
+      setPeakHours(hours);
+    } catch (error) {
+      console.error(error);
+      toast({
+        title: "Error",
+        description: "Failed to load reports.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, [timeRange]);
+
+  const metrics = [
     {
       title: "Total Revenue",
-      value: "$18,920",
-      change: "+12.9% vs last week",
-      changeType: "positive" as const,
+      value: `$${dailyReport?.totalRevenue?.toLocaleString() ?? 0}`,
       icon: DollarSign,
+      changeType: "positive" as const,
     },
     {
       title: "Total Orders",
-      value: 287,
-      change: "+14.3% vs last week",
-      changeType: "positive" as const,
+      value: dailyReport?.totalOrders ?? 0,
       icon: BarChart3,
+      changeType: "positive" as const,
     },
     {
       title: "Avg Order Value",
-      value: "$65.89",
-      change: "-1.2% vs last week",
-      changeType: "negative" as const,
+      value: `$${dailyReport?.avgOrderValue?.toFixed(2) ?? 0}`,
       icon: TrendingUp,
+      changeType: "neutral" as const,
     },
     {
       title: "Customer Visits",
-      value: 498,
-      change: "+8.7% vs last week",
-      changeType: "positive" as const,
+      value: dailyReport?.customerVisits ?? 0,
       icon: Users,
+      changeType: "positive" as const,
     },
   ];
 
   return (
-    <div className="space-y-8">
+    <div id="report-content" className="space-y-8">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Reports & Analytics</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Reports & Analytics
+          </h1>
           <p className="text-muted-foreground mt-1">
-            Track performance, analyze trends, and make data-driven decisions.
+            Track performance and analyze real data.
           </p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="outline">
+        <div className="flex items-center gap-3">
+          <Select value={timeRange} onValueChange={setTimeRange}>
+            <SelectTrigger className="w-[180px]">
+              <Calendar className="w-4 h-4 mr-2" />
+              <SelectValue placeholder="Select Range" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="today">Today</SelectItem>
+              <SelectItem value="7d">Last 7 Days</SelectItem>
+              <SelectItem value="30d">Last 30 Days</SelectItem>
+              <SelectItem value="3m">Last 3 Months</SelectItem>
+            </SelectContent>
+          </Select>
+
+          <Button variant="outline" onClick={handleExportPDF}>
             <Download className="w-4 h-4 mr-2" />
             Export PDF
           </Button>
-          <Button variant="outline">
-            <Download className="w-4 h-4 mr-2" />
-            Export CSV
-          </Button>
         </div>
       </div>
 
-      {/* Key Metrics */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {weeklyMetrics.map((metric, index) => (
-          <MetricCard
-            key={index}
-            title={metric.title}
-            value={metric.value}
-            change={metric.change}
-            changeType={metric.changeType}
-            icon={metric.icon}
-          />
-        ))}
-      </div>
+      {/* Metrics */}
+      {loading ? (
+        <p className="text-muted-foreground text-center py-10">Loading...</p>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {metrics.map((m, i) => (
+            <MetricCard
+              key={i}
+              title={m.title}
+              value={m.value}
+              changeType={m.changeType}
+              icon={m.icon}
+            />
+          ))}
+        </div>
+      )}
 
-      {/* Sales Overview */}
+      {/* Charts Section 1 */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="dashboard-card">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-foreground">Sales Overview</h3>
-            <Button variant="ghost" size="sm">
-              <BarChart3 className="w-4 h-4 mr-2" />
-              View Chart
+        {/* Revenue */}
+        <Card className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-foreground">
+              Revenue Overview
+            </h3>
+            <Button
+              variant="ghost"
+              onClick={() => setShowSalesChart(!showSalesChart)}
+              size="sm"
+            >
+              {showSalesChart ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+              {showSalesChart ? "Hide" : "Show"}
             </Button>
           </div>
-          <div className="space-y-4">
-            {salesData.map((data, index) => (
-              <div key={index} className="flex items-center justify-between py-2 border-b border-border last:border-0">
-                <div className="flex-1">
-                  <p className="font-medium text-foreground">{data.period}</p>
-                  <p className="text-sm text-muted-foreground">{data.orders} orders</p>
-                </div>
-                <div className="text-right">
-                  <p className="font-medium text-foreground">${data.revenue.toLocaleString()}</p>
-                  <p className="text-sm text-muted-foreground">Avg: ${data.avgOrder}</p>
-                </div>
-              </div>
-            ))}
-          </div>
+          {showSalesChart && (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={salesData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="day" />
+                <YAxis />
+                <Tooltip />
+                <Bar dataKey="revenue" fill="#4F46E5" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
 
-        <Card className="dashboard-card">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-foreground">Top Selling Items</h3>
-            <Button variant="ghost" size="sm">
-              <PieChart className="w-4 h-4 mr-2" />
-              View Chart
+        {/* Top Items */}
+        <Card className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-foreground">Top Items</h3>
+            <Button
+              variant="ghost"
+              onClick={() => setShowTopItemsChart(!showTopItemsChart)}
+              size="sm"
+            >
+              {showTopItemsChart ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+              {showTopItemsChart ? "Hide" : "Show"}
             </Button>
           </div>
-          <div className="space-y-4">
-            {topItems.map((item, index) => (
-              <div key={index} className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center text-sm font-medium text-primary">
-                    {index + 1}
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground">{item.name}</p>
-                    <p className="text-sm text-muted-foreground">{item.orders} orders</p>
-                  </div>
-                </div>
-                <p className="font-medium text-foreground">${item.revenue.toLocaleString()}</p>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      {/* Additional Analytics */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <Card className="dashboard-card">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-foreground">Peak Hours</h3>
-            <Button variant="ghost" size="sm">
-              <Activity className="w-4 h-4 mr-2" />
-              View Details
-            </Button>
-          </div>
-          <div className="space-y-4">
-            {peakHours.map((hour, index) => (
-              <div key={index} className="flex items-center justify-between py-2">
-                <div className="flex items-center gap-3">
-                  <Calendar className="w-4 h-4 text-muted-foreground" />
-                  <span className="font-medium text-foreground">{hour.hour}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-20 h-2 bg-muted rounded-full overflow-hidden">
-                    <div 
-                      className="h-full bg-primary rounded-full"
-                      style={{ width: `${(hour.orders / 50) * 100}%` }}
+          {showTopItemsChart && (
+            <ResponsiveContainer width="100%" height={300}>
+              <PieChart>
+                <Pie
+                  data={topItems}
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={110}
+                  labelLine={false}
+                  label={({ name, revenue }) =>
+                    `${name}: ${revenue.toLocaleString()}₫`
+                  }
+                  dataKey="revenue"
+                >
+                  {topItems.map((_, index) => (
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                      stroke="#fff"
+                      strokeWidth={2}
                     />
-                  </div>
-                  <span className="text-sm font-medium text-foreground">{hour.orders}</span>
-                </div>
-              </div>
-            ))}
+                  ))}
+                </Pie>
+              </PieChart>
+            </ResponsiveContainer>
+          )}
+        </Card>
+      </div>
+
+      {/* Charts Section 2 */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Top Customers */}
+        <Card className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-foreground">
+              Top Customers
+            </h3>
+            <Button
+              variant="ghost"
+              onClick={() => setShowTopCustomersChart(!showTopCustomersChart)}
+              size="sm"
+            >
+              {showTopCustomersChart ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+              {showTopCustomersChart ? "Hide" : "Show"}
+            </Button>
           </div>
+          {showTopCustomersChart && (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart
+                data={topCustomers}
+                layout="vertical"
+                margin={{ top: 5, right: 20, left: 60, bottom: 5 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis type="number" />
+                <YAxis type="category" dataKey="name" />
+                <Tooltip formatter={(v: number) => `${v.toLocaleString()}₫`} />
+                <Bar
+                  dataKey="revenue"
+                  fill="#F59E0B"
+                  radius={[0, 6, 6, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
 
-        <Card className="dashboard-card">
-          <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-semibold text-foreground">Performance Summary</h3>
+        {/* Peak Hours */}
+        <Card className="p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-lg font-semibold text-foreground">
+              Peak Hours
+            </h3>
+            <Button
+              variant="ghost"
+              onClick={() => setShowPeakHoursChart(!showPeakHoursChart)}
+              size="sm"
+            >
+              {showPeakHoursChart ? (
+                <ChevronUp className="w-4 h-4" />
+              ) : (
+                <ChevronDown className="w-4 h-4" />
+              )}
+              {showPeakHoursChart ? "Hide" : "Show"}
+            </Button>
           </div>
-          <div className="space-y-6">
-            <div className="text-center p-6 bg-success/10 rounded-lg">
-              <TrendingUp className="w-8 h-8 text-success mx-auto mb-2" />
-              <h4 className="text-lg font-semibold text-foreground">Revenue Growth</h4>
-              <p className="text-2xl font-bold text-success">+18.2%</p>
-              <p className="text-sm text-muted-foreground">vs last month</p>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-4">
-              <div className="text-center p-4 bg-primary/10 rounded-lg">
-                <Users className="w-6 h-6 text-primary mx-auto mb-2" />
-                <p className="text-sm font-medium text-foreground">New Customers</p>
-                <p className="text-xl font-bold text-primary">127</p>
-              </div>
-              <div className="text-center p-4 bg-amber-100 rounded-lg">
-                <Activity className="w-6 h-6 text-amber-600 mx-auto mb-2" />
-                <p className="text-sm font-medium text-foreground">Avg Service Time</p>
-                <p className="text-xl font-bold text-amber-600">18m</p>
-              </div>
-            </div>
-          </div>
+          {showPeakHoursChart && (
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={peakHours}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="hour" tickFormatter={(h) => `${h}:00`} />
+                <YAxis />
+                <Tooltip formatter={(v: number) => `${v.toLocaleString()}₫`} />
+                <Bar dataKey="revenue" fill="#10B981" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
         </Card>
       </div>
     </div>

@@ -1,5 +1,11 @@
-import { useState } from "react";
-import { Plus, Edit, Trash2, Search, Calendar, Percent } from "lucide-react";
+import { useEffect, useState } from "react";
+import {
+  getAllPromotions,
+  createPromotion,
+  updatePromotion,
+  deletePromotion,
+} from "@/api/promotion.api";
+import { Plus, Edit, Trash2, Search, Calendar, Percent, Users, Clock } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -24,6 +30,9 @@ interface Promotion {
 
 const PromotionPage = () => {
   const { toast } = useToast();
+
+  const [promotions, setPromotions] = useState<Promotion[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStatus, setSelectedStatus] = useState<string>("all");
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
@@ -32,39 +41,58 @@ const PromotionPage = () => {
   const [selectedPromotion, setSelectedPromotion] = useState<Promotion | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Mock data
-  const [promotions, setPromotions] = useState<Promotion[]>([
-    { id: 1, title: "Weekend Special", description: "20% off all main courses during weekends", discountType: "percentage", discountValue: 20, startDate: "2024-03-01", endDate: "2024-03-31", status: "active", usageCount: 45, maxUsage: 100, code: "WEEKEND20" },
-    { id: 2, title: "Happy Hour", description: "$5 off all beverages from 5-7 PM", discountType: "fixed", discountValue: 5, startDate: "2024-03-01", endDate: "2024-03-31", status: "active", usageCount: 128, code: "HAPPY5" },
-    { id: 3, title: "First Timer", description: "15% discount for new customers", discountType: "percentage", discountValue: 15, startDate: "2024-02-01", endDate: "2024-12-31", status: "active", usageCount: 67, code: "FIRSTTIME15" },
-    { id: 4, title: "Valentine's Special", description: "Buy one get one free dessert", discountType: "percentage", discountValue: 50, startDate: "2024-02-10", endDate: "2024-02-14", status: "expired", usageCount: 89, maxUsage: 50, code: "VALENTINE" },
-    { id: 5, title: "Summer Launch", description: "25% off summer menu items", discountType: "percentage", discountValue: 25, startDate: "2024-06-01", endDate: "2024-08-31", status: "scheduled", usageCount: 0, maxUsage: 200, code: "SUMMER25" },
-    { id: 6, title: "Student Discount", description: "$10 off orders above $50 for students", discountType: "fixed", discountValue: 10, startDate: "2024-01-01", endDate: "2024-12-31", status: "inactive", usageCount: 23, code: "STUDENT10" },
-  ]);
+  // ===============================
+  // FETCH DATA
+  // ===============================
+  const fetchPromotions = async () => {
+    try {
+      setLoading(true);
+      const data = await getAllPromotions();
 
-  const statuses = ["all", "active", "inactive", "expired", "scheduled"];
+      const mapped: Promotion[] = data.map((p: any) => {
+        const now = new Date();
+        const start = new Date(p.startDate);
+        const end = new Date(p.endDate);
 
-  const filteredPromotions = promotions.filter(promotion => {
-    const matchesSearch = promotion.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         promotion.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         promotion.code?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = selectedStatus === "all" || promotion.status === selectedStatus;
-    return matchesSearch && matchesStatus;
-  });
+        let status: Promotion["status"];
+        if (now < start) status = "scheduled";
+        else if (now > end) status = "expired";
+        else status = "active";
 
-  const getStatusColor = (status: Promotion["status"]) => {
-    switch (status) {
-      case "active": return "bg-success text-success-foreground";
-      case "inactive": return "bg-muted text-muted-foreground";
-      case "expired": return "bg-destructive text-destructive-foreground";
-      case "scheduled": return "bg-primary text-primary-foreground";
-      default: return "bg-muted text-muted-foreground";
+        return {
+          id: p.id,
+          title: p.title,
+          description: p.description || "",
+          discountType: p.discountType,
+          discountValue: p.discountValue,
+          startDate: p.startDate,
+          endDate: p.endDate,
+          status,
+          usageCount: p.usageCount ?? 0,
+          maxUsage: p.maxUsage,
+          code: p.code,
+        };
+      });
+
+      setPromotions(mapped);
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to load promotions",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
     }
   };
 
-  const formatDiscount = (type: Promotion["discountType"], value: number) => {
-    return type === "percentage" ? `${value}%` : `$${value}`;
-  };
+  useEffect(() => {
+    fetchPromotions();
+  }, []);
+
+  // ===============================
+  // CRUD HANDLERS
+  // ===============================
 
   const handleAddPromotion = () => {
     setFormMode("add");
@@ -83,34 +111,40 @@ const PromotionPage = () => {
     setIsDeleteDialogOpen(true);
   };
 
-  const handleFormSubmit = (data: any) => {
-    if (formMode === "add") {
-      const newPromotion: Promotion = {
-        id: Math.max(...promotions.map(p => p.id)) + 1,
-        usageCount: 0,
-        ...data,
-      };
-      setPromotions([...promotions, newPromotion]);
-    } else if (formMode === "edit" && selectedPromotion) {
-      setPromotions(promotions.map(p => 
-        p.id === selectedPromotion.id ? { ...selectedPromotion, ...data } : p
-      ));
+  const handleFormSubmit = async (formData: any) => {
+    setIsSubmitting(true);
+    try {
+      if (formMode === "add") {
+        await createPromotion(formData);
+        toast({ title: "Success", description: "Promotion created successfully" });
+      } else if (formMode === "edit" && selectedPromotion) {
+        await updatePromotion(selectedPromotion.id, formData);
+        toast({ title: "Success", description: "Promotion updated successfully" });
+      }
+      setIsFormModalOpen(false);
+      await fetchPromotions();
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "Failed to save promotion",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
-    setIsFormModalOpen(false);
   };
 
   const handleDeleteConfirm = async () => {
     if (!selectedPromotion) return;
-    
     setIsSubmitting(true);
     try {
-      setPromotions(promotions.filter(p => p.id !== selectedPromotion.id));
+      await deletePromotion(selectedPromotion.id);
       toast({
-        title: "Promotion Deleted",
+        title: "Deleted",
         description: `${selectedPromotion.title} has been deleted successfully.`,
       });
       setIsDeleteDialogOpen(false);
-      setSelectedPromotion(undefined);
+      await fetchPromotions();
     } catch (error) {
       toast({
         title: "Error",
@@ -122,15 +156,57 @@ const PromotionPage = () => {
     }
   };
 
-  const isExpiringSoon = (endDate: string) => {
-    const end = new Date(endDate);
-    const now = new Date();
-    const daysUntilEnd = Math.ceil((end.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    return daysUntilEnd <= 7 && daysUntilEnd > 0;
+  // ===============================
+  // HELPERS
+  // ===============================
+  const statuses = ["all", "active", "inactive", "expired", "scheduled"];
+
+  const filteredPromotions = promotions.filter((promotion) => {
+    const matchesSearch =
+      promotion.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      promotion.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      promotion.code?.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesStatus = selectedStatus === "all" || promotion.status === selectedStatus;
+    return matchesSearch && matchesStatus;
+  });
+
+  const getStatusColor = (status: Promotion["status"]) => {
+    switch (status) {
+      case "active":
+        return "bg-green-100 text-green-800 border-green-200";
+      case "inactive":
+        return "bg-gray-100 text-gray-800 border-gray-200";
+      case "expired":
+        return "bg-red-100 text-red-800 border-red-200";
+      case "scheduled":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
   };
 
+  const formatDiscount = (type: Promotion["discountType"], value: number) => {
+    return type === "percentage" ? `${value}%` : `$${value}`;
+  };
+
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('en-US', {
+      month: 'short',
+      day: 'numeric',
+      year: 'numeric'
+    });
+  };
+
+  const getUsagePercentage = (usageCount: number, maxUsage?: number) => {
+    if (!maxUsage) return 0;
+    return Math.min((usageCount / maxUsage) * 100, 100);
+  };
+
+  // ===============================
+  // RENDER
+  // ===============================
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 p-6">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
@@ -139,70 +215,71 @@ const PromotionPage = () => {
             Create and manage promotional campaigns and discount codes.
           </p>
         </div>
-        <Button onClick={handleAddPromotion} className="btn-primary">
+        <Button onClick={handleAddPromotion} className="bg-blue-600 hover:bg-blue-700 text-white">
           <Plus className="w-4 h-4 mr-2" />
           Create Promotion
         </Button>
       </div>
 
-      {/* Summary Cards */}
+      {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        <Card className="dashboard-card">
+        <Card className="p-6 border-l-4 border-l-blue-400 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Active Promotions</p>
-              <p className="text-2xl font-bold text-foreground">
-                {promotions.filter(p => p.status === "active").length}
-              </p>
+              <p className="text-sm font-medium text-muted-foreground">Total Promotions</p>
+              <p className="text-2xl font-bold text-foreground">{promotions.length}</p>
             </div>
-            <div className="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
-              <Percent className="w-6 h-6 text-success" />
+            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+              <Percent className="w-6 h-6 text-blue-600" />
             </div>
           </div>
         </Card>
-        <Card className="dashboard-card">
+
+        <Card className="p-6 border-l-4 border-l-green-400 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Usage</p>
+              <p className="text-sm font-medium text-muted-foreground">Active</p>
               <p className="text-2xl font-bold text-foreground">
-                {promotions.reduce((sum, p) => sum + p.usageCount, 0)}
+                {promotions.filter(p => p.status === 'active').length}
               </p>
             </div>
-            <div className="w-12 h-12 bg-primary-light rounded-lg flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-primary" />
+            <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+              <Users className="w-6 h-6 text-green-600" />
             </div>
           </div>
         </Card>
-        <Card className="dashboard-card">
+
+        <Card className="p-6 border-l-4 border-l-yellow-400 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-muted-foreground">Scheduled</p>
               <p className="text-2xl font-bold text-foreground">
-                {promotions.filter(p => p.status === "scheduled").length}
+                {promotions.filter(p => p.status === 'scheduled').length}
               </p>
             </div>
-            <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-blue-600" />
+            <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
+              <Clock className="w-6 h-6 text-yellow-600" />
             </div>
           </div>
         </Card>
-        <Card className="dashboard-card">
+
+        <Card className="p-6 border-l-4 border-l-purple-400 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Expiring Soon</p>
+              <p className="text-sm font-medium text-muted-foreground">Expired</p>
               <p className="text-2xl font-bold text-foreground">
-                {promotions.filter(p => isExpiringSoon(p.endDate)).length}
+                {promotions.filter(p => p.status === 'expired').length}
               </p>
             </div>
-            <div className="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
-              <Calendar className="w-6 h-6 text-warning" />
+            <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+              <Calendar className="w-6 h-6 text-purple-600" />
             </div>
           </div>
         </Card>
       </div>
 
-      {/* Search and Filters */}
-      <Card className="dashboard-card">
+      {/* Search + Filter */}
+      <Card className="p-6 hover:shadow-lg transition-shadow">
         <div className="flex flex-col sm:flex-row gap-4">
           <div className="relative flex-1">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -222,144 +299,162 @@ const PromotionPage = () => {
                 onClick={() => setSelectedStatus(status)}
                 className="capitalize"
               >
-                {status}
+                {status === "all" ? "All Status" : status}
               </Button>
             ))}
           </div>
         </div>
       </Card>
 
-      {/* Desktop Table View */}
-      <Card className="desktop-table">
-        <div className="table-header flex items-center justify-between">
-          <h3 className="text-lg font-semibold">All Promotions ({filteredPromotions.length})</h3>
+      {/* Table */}
+      <Card className="p-6 hover:shadow-lg transition-shadow">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-semibold text-foreground">
+            {loading ? "Loading promotions..." : `All Promotions (${filteredPromotions.length})`}
+          </h3>
         </div>
+        
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
-              <tr className="border-b border-border">
-                <th className="text-left py-4 px-6 font-medium text-muted-foreground">Promotion</th>
-                <th className="text-left py-4 px-6 font-medium text-muted-foreground">Discount</th>
-                <th className="text-left py-4 px-6 font-medium text-muted-foreground">Duration</th>
-                <th className="text-left py-4 px-6 font-medium text-muted-foreground">Usage</th>
-                <th className="text-left py-4 px-6 font-medium text-muted-foreground">Status</th>
-                <th className="text-right py-4 px-6 font-medium text-muted-foreground">Actions</th>
+              <tr className="border-b border-border bg-gray-50/50">
+                <th className="text-center py-4 px-4 font-semibold text-gray-700">Promotion</th>
+                <th className="text-center py-4 px-4 font-semibold text-gray-700">Discount</th>
+                <th className="text-center py-4 px-4 font-semibold text-gray-700">Duration</th>
+                <th className="text-center py-4 px-4 font-semibold text-gray-700">Usage</th>
+                <th className="text-center py-4 px-4 font-semibold text-gray-700">Status</th>
+                <th className="text-center py-4 px-4 font-semibold text-gray-700">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {filteredPromotions.map((promotion) => (
-                <tr key={promotion.id} className="table-row">
-                  <td>
-                    <div>
-                      <div className="font-medium text-foreground">{promotion.title}</div>
-                      <div className="text-sm text-muted-foreground">{promotion.description}</div>
-                      {promotion.code && (
-                        <div className="text-xs text-primary font-mono mt-1">Code: {promotion.code}</div>
-                      )}
-                    </div>
-                  </td>
-                  <td className="font-medium text-foreground">
-                    {formatDiscount(promotion.discountType, promotion.discountValue)} off
-                  </td>
-                  <td className="text-muted-foreground">
-                    <div className="text-sm">
-                      <div>{promotion.startDate}</div>
-                      <div className="text-xs">to {promotion.endDate}</div>
-                    </div>
-                  </td>
-                  <td className="text-muted-foreground">
-                    {promotion.usageCount}
-                    {promotion.maxUsage && ` / ${promotion.maxUsage}`}
-                  </td>
-                  <td>
-                    <Badge className={getStatusColor(promotion.status)}>
-                      {promotion.status}
-                    </Badge>
-                    {isExpiringSoon(promotion.endDate) && promotion.status === "active" && (
-                      <Badge className="ml-2 bg-warning text-warning-foreground">
-                        Expiring Soon
-                      </Badge>
-                    )}
-                  </td>
-                  <td className="text-right">
-                    <div className="flex items-center justify-end gap-2">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleEditPromotion(promotion)}
-                      >
-                        <Edit className="w-4 h-4" />
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleDeletePromotion(promotion)}
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
-                    </div>
+              {loading ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
+                    <p className="text-muted-foreground">Loading promotions...</p>
                   </td>
                 </tr>
-              ))}
+              ) : filteredPromotions.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="text-center py-12">
+                    <div className="text-muted-foreground text-lg mb-2">No promotions found</div>
+                    <p className="text-sm text-muted-foreground mb-4">
+                      {searchTerm || selectedStatus !== "all" 
+                        ? "Try adjusting your search or filters" 
+                        : "Create your first promotion to get started"
+                      }
+                    </p>
+                    {!searchTerm && selectedStatus === "all" && (
+                      <Button onClick={handleAddPromotion} size="sm">
+                        <Plus className="w-4 h-4 mr-2" />
+                        Create Promotion
+                      </Button>
+                    )}
+                  </td>
+                </tr>
+              ) : (
+                filteredPromotions.map((promotion) => (
+                  <tr key={promotion.id} className="border-b border-border hover:bg-gray-50/30 transition-colors">
+                    {/* Promotion Info */}
+                    <td className="py-4 px-4">
+                        <div className="font-semibold text-foreground mb-1">{promotion.title}</div>
+                        <div className="text-sm text-muted-foreground mb-2">{promotion.description}</div>
+                        {promotion.code && (
+                          <div className="text-xs bg-blue-50 text-blue-700 font-mono px-2 py-1 rounded border border-blue-200 inline-block">
+                            {promotion.code}
+                          </div>
+                        )}
+                    </td>
+
+                    {/* Discount */}
+                    <td className="py-4 px-4 ">
+                      <div className="flex flex-col items-center">
+                        <div className="text-lg font-bold text-green-600">
+                          {formatDiscount(promotion.discountType, promotion.discountValue)}
+                        </div>
+                        <div className="text-xs text-muted-foreground capitalize">
+                          {promotion.discountType}
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Duration */}
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex flex-col items-center space-y-1">
+                        <div className="flex items-center gap-1 text-sm">
+                          <Calendar className="w-3 h-3 text-muted-foreground" />
+                          <span>{formatDate(promotion.startDate)}</span>
+                        </div>
+                        <div className="text-xs text-muted-foreground">to</div>
+                        <div className="flex items-center gap-1 text-sm">
+                          <Calendar className="w-3 h-3 text-muted-foreground" />
+                          <span>{formatDate(promotion.endDate)}</span>
+                        </div>
+                      </div>
+                    </td>
+
+                    {/* Usage */}
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex flex-col items-center space-y-2">
+                        <div className="text-sm font-medium">
+                          {promotion.usageCount} {promotion.maxUsage ? `/ ${promotion.maxUsage}` : ''}
+                        </div>
+                        {promotion.maxUsage && (
+                          <div className="w-20 bg-gray-200 rounded-full h-2">
+                            <div 
+                              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+                              style={{ 
+                                width: `${getUsagePercentage(promotion.usageCount, promotion.maxUsage)}%` 
+                              }}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </td>
+
+                    {/* Status */}
+                    <td className="py-4 px-4 text-center">
+                      <Badge 
+                        className={`capitalize border ${getStatusColor(promotion.status)} font-medium`}
+                      >
+                        {promotion.status}
+                      </Badge>
+                    </td>
+
+                    {/* Actions */}
+                    <td className="py-4 px-4 text-center">
+                      <div className="flex justify-center gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleEditPromotion(promotion)}
+                          className="border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </Button>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          onClick={() => handleDeletePromotion(promotion)}
+                          className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>
       </Card>
 
-      {/* Mobile Card View */}
-      <div className="lg:hidden space-y-4">
-        {filteredPromotions.map((promotion) => (
-          <Card key={promotion.id} className="mobile-card">
-            <div className="flex items-start justify-between mb-3">
-              <div className="flex-1">
-                <h4 className="font-semibold text-foreground">{promotion.title}</h4>
-                <p className="text-sm text-muted-foreground mt-1">{promotion.description}</p>
-                {promotion.code && (
-                  <p className="text-xs text-primary font-mono mt-1">Code: {promotion.code}</p>
-                )}
-              </div>
-              <div className="flex flex-col gap-2 ml-4">
-                <Badge className={getStatusColor(promotion.status)}>
-                  {promotion.status}
-                </Badge>
-                {isExpiringSoon(promotion.endDate) && promotion.status === "active" && (
-                  <Badge className="bg-warning text-warning-foreground">
-                    Expiring Soon
-                  </Badge>
-                )}
-              </div>
-            </div>
-            <div className="space-y-2 text-sm text-muted-foreground">
-              <p><span className="font-medium">Discount:</span> {formatDiscount(promotion.discountType, promotion.discountValue)} off</p>
-              <p><span className="font-medium">Duration:</span> {promotion.startDate} to {promotion.endDate}</p>
-              <p><span className="font-medium">Usage:</span> {promotion.usageCount}{promotion.maxUsage && ` / ${promotion.maxUsage}`}</p>
-            </div>
-            <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-border">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleEditPromotion(promotion)}
-              >
-                <Edit className="w-4 h-4 mr-1" />
-                Edit
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDeletePromotion(promotion)}
-              >
-                <Trash2 className="w-4 h-4 mr-1" />
-                Delete
-              </Button>
-            </div>
-          </Card>
-        ))}
-      </div>
-
+      {/* Modals */}
       <PromotionFormModal
         isOpen={isFormModalOpen}
         onClose={() => setIsFormModalOpen(false)}
-        onSubmit={handleFormSubmit}
+        onSubmit={fetchPromotions}
         promotion={selectedPromotion}
         mode={formMode}
       />

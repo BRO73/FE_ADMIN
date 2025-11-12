@@ -17,6 +17,14 @@ export const useBooking = () => {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // ✅ Hàm sắp xếp theo thời gian (mới nhất trước)
+    const sortByBookingTimeDesc = (list: BookingResponse[]) => {
+        return [...list].sort(
+            (a, b) =>
+                new Date(b.createdAt).getTime() -
+                new Date(a.createdAt).getTime()
+        );
+    };
 
     /**
      * ✅ Lấy tất cả bookings khi khởi tạo
@@ -25,7 +33,7 @@ export const useBooking = () => {
         setLoading(true);
         try {
             const data = await getAllBookings();
-            setBookings(data);
+            setBookings(sortByBookingTimeDesc(data));
         } catch (err: any) {
             setError(err.message);
             toast({
@@ -50,7 +58,7 @@ export const useBooking = () => {
         try {
             const formatted: BookingRequest = formatBookingData(rawData);
             const newBooking = await createBooking(formatted);
-            setBookings((prev) => [...prev, newBooking]);
+            setBookings((prev) => sortByBookingTimeDesc([...prev, newBooking]));
             toast({
                 title: "Booking Created",
                 description: "New booking has been successfully created.",
@@ -71,12 +79,13 @@ export const useBooking = () => {
      */
     const editBooking = async (id: number, data: BookingRequest) => {
         setLoading(true);
-        console.log("edit for Booking:",data);
+        console.log("edit for Booking:", data);
         try {
             const formatted: BookingRequest = formatBookingData(data);
             const updated = await updateBooking(id, formatted);
-            setBookings((prev) => prev.map((b) => (b.id === id ? updated : b)));
-
+            setBookings((prev) =>
+                sortByBookingTimeDesc(prev.map((b) => (b.id === id ? updated : b)))
+            );
         } catch (err: any) {
             toast({
                 title: "Error",
@@ -95,7 +104,9 @@ export const useBooking = () => {
         setLoading(true);
         try {
             await deleteBooking(id);
-            setBookings((prev) => prev.filter((b) => b.id !== id));
+            setBookings((prev) =>
+                sortByBookingTimeDesc(prev.filter((b) => b.id !== id))
+            );
             toast({
                 title: "Booking Deleted",
                 description: "Booking has been successfully removed.",

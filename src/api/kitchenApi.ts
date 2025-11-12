@@ -35,9 +35,9 @@ export async function apiCompleteOneUnit(orderDetailId: number): Promise<void> {
 }
 
 export async function apiCompleteAllUnits(orderDetailId: number): Promise<void> {
-    await axios.post(`/kitchen/order-details/${orderDetailId}/complete-all`);
+    await axios.patch(`/kitchen/order-details/${orderDetailId}/complete-all`);
 }
 
 export async function apiServeOneUnit(orderDetailId: number): Promise<void> {
-    await axios.post(`/kitchen/order-details/${orderDetailId}/serve-one`);
+    await axios.patch(`/kitchen/order-details/${orderDetailId}/serve-one`);
 }
