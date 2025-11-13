@@ -1,21 +1,19 @@
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+// src/hooks/useStaff.ts
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
+    fetchStaffs,
     createStaff,
-    getMyStoreStaff,
     updateStaff,
     deleteStaff,
+    type StaffResponse,
     type CreateStaffRequest,
     type UpdateStaffRequest,
-    type StaffResponse,
 } from "@/api/staff.api";
-
-/** Thống nhất queryKey dùng cho staff list */
-export const STAFFS_QK = ["staffs", "my-store-staff"];
 
 export function useStaffs() {
     return useQuery<StaffResponse[]>({
-        queryKey: STAFFS_QK,
-        queryFn: getMyStoreStaff,
+        queryKey: ["staffs", "my-store-staff"],
+        queryFn: fetchStaffs,
     });
 }
 
@@ -23,21 +21,20 @@ export function useCreateStaff() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (payload: CreateStaffRequest) => createStaff(payload),
-        onSuccess: () => qc.invalidateQueries({ queryKey: STAFFS_QK }),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["staffs"] });
+            qc.invalidateQueries({ queryKey: ["staffs", "my-store-staff"] });
+        },
     });
 }
 
 export function useUpdateStaff() {
     const qc = useQueryClient();
     return useMutation({
-        mutationFn: ({ id, data }: { id: number; data: UpdateStaffRequest }) =>
-            updateStaff(id, data),
-        onSuccess: (res) => {
-            // merge lạc quan + refetch
-            qc.setQueryData<StaffResponse[] | undefined>(STAFFS_QK, (old) =>
-                Array.isArray(old) ? old.map((s) => (s.id === res.id ? res : s)) : old
-            );
-            qc.invalidateQueries({ queryKey: STAFFS_QK });
+        mutationFn: (p: { id: number; data: UpdateStaffRequest }) => updateStaff(p.id, p.data),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["staffs"] });
+            qc.invalidateQueries({ queryKey: ["staffs", "my-store-staff"] });
         },
     });
 }
@@ -46,11 +43,9 @@ export function useDeleteStaff() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: (id: number) => deleteStaff(id),
-        onSuccess: (_, id) => {
-            qc.setQueryData<StaffResponse[] | undefined>(STAFFS_QK, (old) =>
-                Array.isArray(old) ? old.filter((s) => s.id !== id) : old
-            );
-            qc.invalidateQueries({ queryKey: STAFFS_QK });
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["staffs"] });
+            qc.invalidateQueries({ queryKey: ["staffs", "my-store-staff"] });
         },
     });
 }

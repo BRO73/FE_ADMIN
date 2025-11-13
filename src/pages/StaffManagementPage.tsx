@@ -1,5 +1,6 @@
-import { useMemo, useState, type ComponentProps } from "react";
-import { Plus, Edit, Trash2, Search, Phone, Mail, User } from "lucide-react";
+// src/pages/StaffManagementPage.tsx
+import {useMemo, useState, type ComponentProps, useEffect} from "react";
+import { Plus, Edit, Trash2, Search, Phone, Mail, User, UserPlus } from "lucide-react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -13,10 +14,23 @@ import DeleteConfirmDialog from "@/components/forms/DeleteConfirmDialog";
 import { useStaffs, useCreateStaff, useUpdateStaff, useDeleteStaff } from "@/hooks/useStaff";
 import type { StaffResponse, UpdateStaffRequest, StaffRoleBE } from "@/api/staff.api";
 import {
+    Dialog,
+    DialogContent,
+    DialogHeader,
+    DialogTitle,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+
+
+import {
     fetchUserAccounts,
+    createUserAccount,
     updateUserAccount,
-    type UserAccountResponse as UserAccountRowBE,
-} from "@/api/userAccount.api";
+    deleteUserAccount,
+    type StaffAccountResponse as UserAccountRowBE,
+    type CreateStaffAccountRequest, StaffAccountResponse,
+} from "@/api/staffAccount.api";
+
 
 /* =========================
  * Types
@@ -36,7 +50,9 @@ type AdminStaffRow = {
     email: string;
     phone: string;
     joinDate: string;
+    userId: number | null;
 };
+
 
 type AccountRow = {
     id: number;
@@ -49,12 +65,12 @@ type AccountRow = {
 type SelectedUA = {
     id: number;
     username: string;
-    role: string; // "ROLE_*"
+    role: string; // DB role name: "WAITSTAFF" / "KITCHEN_STAFF" / "CASHIER" / "ADMIN"
     passwordText?: string;
 };
 type UAPayload = {
     username?: string;
-    role?: string; // "ROLE_*"
+    role?: string;
     password?: string;
 };
 type UAInitial = SelectedUA;
@@ -83,19 +99,11 @@ const normalizeRoleToUi = (beRole?: string): UiRole => {
 };
 
 /** UI -> BE (Staff service – enum thuần, không có ROLE_) */
-const UI_TO_BE_STAFF: Record<UiRole, string> = {
+const UI_TO_BE_STAFF: Record<UiRole, StaffRoleBE> = {
     waiter: "WAITER",
     chef: "CHEF",
     cashier: "CASHIER",
     admin: "ADMIN",
-};
-
-/** UI -> BE (UserAccount service – ROLE_*) */
-const UI_TO_BE_ACCOUNT: Record<UiRole, string> = {
-    waiter: "ROLE_WAITER",
-    chef: "ROLE_CHEF",
-    cashier: "ROLE_CASHIER",
-    admin: "ROLE_ADMIN",
 };
 
 const ROLE_LABEL: Record<UiRole, string> = {
@@ -121,12 +129,12 @@ const BE_TO_UI_ACCOUNT: Record<string, UiAccountRole> = {
     ADMIN: "admin",
 };
 
-/* Helper lấy message lỗi */
+/* Helper lấy message lỗi từ BE */
 const extractErrorMessage = (e: unknown): string => {
     if (typeof e === "object" && e !== null) {
-        const resp = (e as { response?: { data?: { message?: unknown } } }).response;
-        const msg = resp?.data?.message;
-        if (typeof msg === "string") return msg;
+        const anyErr = e as { response?: { status?: number; data?: { message?: unknown } } };
+        const msg = anyErr.response?.data?.message;
+        if (typeof msg === "string" && msg) return msg;
     }
     return "Operation failed";
 };
@@ -152,7 +160,7 @@ const StaffManagementPage = () => {
 
     // Map Staff BE -> UI
     const staffList: AdminStaffRow[] = useMemo(() => {
-        const raw = staffData ?? [];
+        const raw = Array.isArray(staffData) ? staffData : [];
         return raw.map((s: StaffResponse) => ({
             id: s.id,
             name: s.fullName,
@@ -160,33 +168,56 @@ const StaffManagementPage = () => {
             email: s.email,
             phone: s.phoneNumber,
             joinDate: s.createdAt ? s.createdAt.slice(0, 10) : "",
+            userId: s.userId ?? null,
         }));
     }, [staffData]);
+
+
 
     const filteredStaff = useMemo(() => {
         const q = searchTerm.trim().toLowerCase();
         if (!q) return staffList;
         return staffList.filter((m) => {
             const roleLabel = ROLE_LABEL[m.role].toLowerCase();
-            return m.name.toLowerCase().includes(q) || roleLabel.includes(q) || m.email.toLowerCase().includes(q);
+            return (
+                m.name.toLowerCase().includes(q) ||
+                roleLabel.includes(q) ||
+                m.email.toLowerCase().includes(q)
+            );
         });
     }, [searchTerm, staffList]);
 
-    // ==== Accounts (real BE) ====
+    // ===== Duplicate helpers (client-side) =====
+    const normEmail = (s: string) => s.trim().toLowerCase();
+    const normPhone = (s: string) => s.replace(/[^\d]/g, "");
+
+    const isDuplicateEmail = (email: string, excludeId?: number) => {
+        const target = normEmail(email);
+        return staffList.some((s) => normEmail(s.email) === target && s.id !== excludeId);
+    };
+
+    const isDuplicatePhone = (phone: string, excludeId?: number) => {
+        const target = normPhone(phone);
+        return staffList.some((s) => normPhone(s.phone) === target && s.id !== excludeId);
+    };
+
+    // ==== Accounts (StaffAccount) ====
     const [userSearchTerm, setUserSearchTerm] = useState("");
     const [isUserFormModalOpen, setIsUserFormModalOpen] = useState(false);
     const [isUserDeleteDialogOpen, setIsUserDeleteDialogOpen] = useState(false);
     const [selectedUserAccount, setSelectedUserAccount] = useState<SelectedUA | undefined>();
 
-    // GET user accounts
-    const { data: accountsRes, isLoading: isAccountsLoading } = useQuery<UserAccountRowBE[]>({
+    const {
+        data: accountsRes = [],          // default = []
+        isLoading: isAccountsLoading,
+        isError: isAccountsError,
+    } = useQuery<StaffAccountResponse[]>({
         queryKey: ["user-accounts"],
         queryFn: fetchUserAccounts,
     });
 
-    // Map BE -> AccountRow (render bảng)
     const userAccounts = useMemo<AccountRow[]>(() => {
-        const rows = accountsRes ?? [];
+        const rows = Array.isArray(accountsRes) ? accountsRes : [];
         return rows.map((u) => ({
             id: u.id,
             name: u.username,
@@ -196,10 +227,16 @@ const StaffManagementPage = () => {
         }));
     }, [accountsRes]);
 
+
+
     const filteredUserAccounts = useMemo(() => {
         const q = userSearchTerm.trim().toLowerCase();
         if (!q) return userAccounts;
-        return userAccounts.filter((a) => a.name.toLowerCase().includes(q) || a.role.toLowerCase().includes(q));
+        return userAccounts.filter(
+            (a) =>
+                a.name.toLowerCase().includes(q) ||
+                ROLE_LABEL[a.role].toLowerCase().includes(q),
+        );
     }, [userSearchTerm, userAccounts]);
 
     // PUT update user account
@@ -208,8 +245,30 @@ const StaffManagementPage = () => {
             updateUserAccount(p.id, p.body),
         onSuccess: () => {
             qc.invalidateQueries({ queryKey: ["user-accounts"] });
+            qc.invalidateQueries({ queryKey: ["staffs", "my-store-staff"] });
         },
     });
+
+    const { mutateAsync: deleteUserAccountMut } = useMutation({
+        mutationFn: (id: number) => deleteUserAccount(id),
+        onSuccess: () => {
+            qc.invalidateQueries({ queryKey: ["user-accounts"] });
+            qc.invalidateQueries({ queryKey: ["staffs", "my-store-staff"] });
+        },
+    });
+    const { mutateAsync: createUserAccountMut } = useMutation({
+        mutationFn: (payload: CreateStaffAccountRequest) => createUserAccount(payload),
+        onSuccess: async () => {
+            await qc.invalidateQueries({ queryKey: ["user-accounts"] });
+            await qc.invalidateQueries({ queryKey: ["staffs", "my-store-staff"] });
+        },
+    });
+    useEffect(() => {
+        console.log("accountsRes = ", accountsRes);
+        console.log("userAccounts = ", userAccounts);
+        console.log("filteredUserAccounts = ", filteredUserAccounts);
+    }, [accountsRes, userAccounts, filteredUserAccounts]);
+
 
     /* ====== UI Helpers ====== */
     const getRoleColor = (role: UiRole) => {
@@ -256,29 +315,121 @@ const StaffManagementPage = () => {
         setIsDeleteDialogOpen(true);
     };
 
+    // mở modal tạo account cho staff
+    const handleOpenCreateAccount = (member: AdminStaffRow) => {
+        setSelectedStaffForAccount(member);
+
+        // gợi ý username từ email: trước @
+        const baseUsername = member.email.includes("@")
+            ? member.email.split("@")[0]
+            : member.email;
+        setAccountUsername(baseUsername);
+        setAccountPassword("");
+        setAccountPasswordConfirm("");
+        setIsCreateAccountOpen(true);
+    };
+
+    const handleCreateAccountSubmit = async () => {
+        if (!selectedStaffForAccount) return;
+
+        const username = accountUsername.trim();
+        const password = accountPassword.trim();
+        const confirm = accountPasswordConfirm.trim();
+
+        if (!username || !password) {
+            toast({
+                title: "Validation error",
+                description: "Username and password are required.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        if (password !== confirm) {
+            toast({
+                title: "Validation error",
+                description: "Password and confirm password do not match.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        try {
+            await createUserAccountMut({
+                staffId: selectedStaffForAccount.id,
+                username,
+                password,
+            });
+
+            toast({
+                title: "Account created",
+                description: `User account for ${selectedStaffForAccount.name} has been created.`,
+            });
+
+            setIsCreateAccountOpen(false);
+            setSelectedStaffForAccount(null);
+        } catch (e) {
+            const msg = extractErrorMessage(e);
+            toast({
+                title: "Error",
+                description: msg,
+                variant: "destructive",
+            });
+        }
+    };
+
+
+    // ==== Create account cho staff ====
+    const [isCreateAccountOpen, setIsCreateAccountOpen] = useState(false);
+    const [selectedStaffForAccount, setSelectedStaffForAccount] = useState<AdminStaffRow | null>(
+        null
+    );
+    const [accountUsername, setAccountUsername] = useState("");
+    const [accountPassword, setAccountPassword] = useState("");
+    const [accountPasswordConfirm, setAccountPasswordConfirm] = useState("");
+
+
     const CURRENT_STORE_ID = 1;
 
-    // KHÔNG dùng username – BE tự sinh từ email
     const saveStaff = async (payload: {
         name: string;
         email: string;
         phone: string;
         role: UiRole;
         joinDate?: string;
-        initialPassword?: string;
     }) => {
         const enumRole = UI_TO_BE_STAFF[payload.role];
         setIsSubmitting(true);
+
+        const excludeId = formMode === "edit" && selectedRow ? selectedRow.id : undefined;
+
+        if (isDuplicateEmail(payload.email, excludeId)) {
+            toast({
+                title: "Lỗi",
+                description: "Email đã tồn tại trong danh sách.",
+                variant: "destructive",
+            });
+            setIsSubmitting(false);
+            return;
+        }
+        if (isDuplicatePhone(payload.phone, excludeId)) {
+            toast({
+                title: "Lỗi",
+                description: "Số điện thoại đã tồn tại trong danh sách.",
+                variant: "destructive",
+            });
+            setIsSubmitting(false);
+            return;
+        }
+
         try {
             if (formMode === "add") {
                 await createStaffMut({
-                    username: "",
                     fullName: payload.name,
                     email: payload.email,
                     phoneNumber: payload.phone,
-                    role: enumRole as unknown as StaffRoleBE, // enum thuần (KHÔNG ROLE_)
+                    role: enumRole,
                     storeId: CURRENT_STORE_ID,
-                    initialPassword: payload.initialPassword || "123456",
                 });
                 toast({ title: "Tạo nhân viên thành công" });
             } else if (formMode === "edit" && selectedRow) {
@@ -286,19 +437,22 @@ const StaffManagementPage = () => {
                     fullName: payload.name,
                     email: payload.email,
                     phoneNumber: payload.phone,
-                    role: enumRole as unknown as StaffRoleBE,
+                    role: enumRole,
                 };
                 await updateStaffMut({ id: selectedRow.id, data: updateData });
                 toast({ title: "Cập nhật nhân viên thành công" });
             }
 
-            // Refresh
             await qc.invalidateQueries({ queryKey: ["staffs"] });
             await qc.invalidateQueries({ queryKey: ["staffs", "my-store-staff"] });
 
             setIsFormModalOpen(false);
         } catch (e: unknown) {
-            toast({ title: "Lỗi", description: extractErrorMessage(e), variant: "destructive" });
+            toast({
+                title: "Lỗi",
+                description: extractErrorMessage(e),
+                variant: "destructive",
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -309,7 +463,6 @@ const StaffManagementPage = () => {
         const email = data.email ?? "";
         const phone = data.phone ?? "";
         const role = data.role ?? "waiter";
-        const initialPassword = data.initialPassword ?? "123456";
 
         void saveStaff({
             name,
@@ -317,7 +470,6 @@ const StaffManagementPage = () => {
             phone,
             role,
             joinDate: data.joinDate,
-            initialPassword,
         });
     };
 
@@ -332,7 +484,11 @@ const StaffManagementPage = () => {
             await qc.invalidateQueries({ queryKey: ["staffs"] });
             await qc.invalidateQueries({ queryKey: ["staffs", "my-store-staff"] });
         } catch (e: unknown) {
-            toast({ title: "Lỗi", description: extractErrorMessage(e), variant: "destructive" });
+            toast({
+                title: "Lỗi",
+                description: extractErrorMessage(e),
+                variant: "destructive",
+            });
         } finally {
             setIsSubmitting(false);
         }
@@ -343,7 +499,7 @@ const StaffManagementPage = () => {
         const initial: SelectedUA = {
             id: account.id,
             username: account.name,
-            role: `ROLE_${account.role.toUpperCase()}`, // giữ ROLE_*
+            role: (accountsRes?.find((u) => u.id === account.id)?.role ?? "WAITSTAFF").toUpperCase(),
             passwordText: account.passwordText ?? "",
         };
         setSelectedUserAccount(initial);
@@ -358,22 +514,48 @@ const StaffManagementPage = () => {
                 id: selectedUserAccount.id,
                 body: {
                     username: data.username ?? selectedUserAccount.username,
-                    role: data.role ?? selectedUserAccount.role, // ROLE_*
+                    role: data.role ?? selectedUserAccount.role, // DB role name
                     ...(data.password !== undefined ? { password: data.password } : {}),
                 },
             });
 
-            toast({ title: "Updated", description: "User account updated successfully." });
+            toast({
+                title: "Updated",
+                description: "User account updated successfully.",
+            });
             setIsUserFormModalOpen(false);
             setSelectedUserAccount(undefined);
         } catch (e: unknown) {
-            toast({ title: "Lỗi", description: extractErrorMessage(e), variant: "destructive" });
+            toast({
+                title: "Lỗi",
+                description: extractErrorMessage(e),
+                variant: "destructive",
+            });
         }
     };
 
     const handleUserAccountDeleteConfirm = async () => {
-        // hiện tại không hỗ trợ xoá account tại đây
-        setIsUserDeleteDialogOpen(false);
+        if (!selectedUserAccount) return;
+        setIsSubmitting(true);
+        try {
+            await deleteUserAccountMut(selectedUserAccount.id);
+
+            toast({
+                title: "Đã xoá tài khoản",
+                description: selectedUserAccount.username,
+            });
+
+            setIsUserDeleteDialogOpen(false);
+            setSelectedUserAccount(undefined);
+        } catch (e: unknown) {
+            toast({
+                title: "Lỗi",
+                description: extractErrorMessage(e),
+                variant: "destructive",
+            });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -382,7 +564,9 @@ const StaffManagementPage = () => {
             <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold text-foreground">Staff Management</h1>
-                    <p className="text-muted-foreground mt-1">Manage restaurant staff members and user account access.</p>
+                    <p className="text-muted-foreground mt-1">
+                        Manage restaurant staff members and user account access.
+                    </p>
                 </div>
             </div>
 
@@ -452,7 +636,9 @@ const StaffManagementPage = () => {
                                         <tr key={member.id} className="table-row">
                                             <td className="py-4 px-6 font-medium text-foreground">{member.name}</td>
                                             <td className="py-4 px-6">
-                                                <Badge className={getRoleColor(member.role)}>{ROLE_LABEL[member.role]}</Badge>
+                                                <Badge className={getRoleColor(member.role)}>
+                                                    {ROLE_LABEL[member.role]}
+                                                </Badge>
                                             </td>
                                             <td className="py-4 px-6 text-muted-foreground">
                                                 <div className="space-y-1">
@@ -469,6 +655,18 @@ const StaffManagementPage = () => {
                                             <td className="py-4 px-6 text-muted-foreground">{member.joinDate}</td>
                                             <td className="py-4 px-6 text-right">
                                                 <div className="flex items-center justify-end gap-2">
+                                                    {/* Nếu staff chưa có userId -> cho tạo account */}
+                                                    {!member.userId && (
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() => handleOpenCreateAccount(member)}
+                                                        >
+                                                            <UserPlus className="w-4 h-4 mr-1" />
+                                                            Create Account
+                                                        </Button>
+                                                    )}
+
                                                     <Button variant="ghost" size="sm" onClick={() => handleEditStaff(member)}>
                                                         <Edit className="w-4 h-4" />
                                                     </Button>
@@ -477,6 +675,7 @@ const StaffManagementPage = () => {
                                                     </Button>
                                                 </div>
                                             </td>
+
                                         </tr>
                                     ))
                                 )}
@@ -488,16 +687,22 @@ const StaffManagementPage = () => {
                     {/* Mobile Cards */}
                     <div className="lg:hidden space-y-4">
                         {isStaffLoading ? (
-                            <Card className="mobile-card p-4 text-sm text-muted-foreground">Fetching staff list...</Card>
+                            <Card className="mobile-card p-4 text-sm text-muted-foreground">
+                                Fetching staff list...
+                            </Card>
                         ) : filteredStaff.length === 0 ? (
-                            <Card className="mobile-card p-4 text-sm text-muted-foreground">No staff found.</Card>
+                            <Card className="mobile-card p-4 text-sm text-muted-foreground">
+                                No staff found.
+                            </Card>
                         ) : (
                             filteredStaff.map((member) => (
                                 <Card key={member.id} className="mobile-card">
                                     <div className="flex items-center justify-between mb-3">
                                         <h4 className="font-semibold text-foreground">{member.name}</h4>
                                         <div className="flex gap-2">
-                                            <Badge className={getRoleColor(member.role)}>{ROLE_LABEL[member.role]}</Badge>
+                                            <Badge className={getRoleColor(member.role)}>
+                                                {ROLE_LABEL[member.role]}
+                                            </Badge>
                                         </div>
                                     </div>
                                     <div className="space-y-2 text-sm text-muted-foreground">
@@ -514,15 +719,34 @@ const StaffManagementPage = () => {
                                         </p>
                                     </div>
                                     <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-border">
-                                        <Button variant="outline" size="sm" onClick={() => handleEditStaff(member)}>
+                                        {!member.userId && (
+                                            <Button
+                                                variant="outline"
+                                                size="sm"
+                                                onClick={() => handleOpenCreateAccount(member)}
+                                            >
+                                                <UserPlus className="w-4 h-4 mr-1" />
+                                                Create
+                                            </Button>
+                                        )}
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleEditStaff(member)}
+                                        >
                                             <Edit className="w-4 h-4 mr-1" />
                                             Edit
                                         </Button>
-                                        <Button variant="outline" size="sm" onClick={() => handleDeleteStaff(member)}>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleDeleteStaff(member)}
+                                        >
                                             <Trash2 className="w-4 h-4 mr-1" />
                                             Delete
                                         </Button>
                                     </div>
+
                                 </Card>
                             ))
                         )}
@@ -535,8 +759,9 @@ const StaffManagementPage = () => {
                         <Button
                             onClick={() =>
                                 toast({
-                                    title: "Not supported",
-                                    description: "User account được tạo đồng thời khi tạo Staff.",
+                                    title: "Not supported yet",
+                                    description:
+                                        "Creating staff accounts will be handled from a dedicated flow.",
                                 })
                             }
                             className="btn-primary"
@@ -563,17 +788,27 @@ const StaffManagementPage = () => {
                     <Card className="desktop-table">
                         <div className="table-header flex items-center justify-between">
                             <h3 className="text-lg font-semibold">
-                                {isAccountsLoading ? "Loading accounts..." : `All User Accounts (${filteredUserAccounts.length})`}
+                                {isAccountsLoading
+                                    ? "Loading accounts..."
+                                    : `All User Accounts (${filteredUserAccounts.length})`}
                             </h3>
                         </div>
                         <div className="overflow-x-auto">
                             <table className="w-full">
                                 <thead>
                                 <tr className="border-b border-border">
-                                    <th className="text-left py-4 px-6 font-medium text-muted-foreground">Username</th>
-                                    <th className="text-left py-4 px-6 font-medium text-muted-foreground">Role</th>
-                                    <th className="text-left py-4 px-6 font-medium text-muted-foreground">Created Date</th>
-                                    <th className="text-right py-4 px-6 font-medium text-muted-foreground">Actions</th>
+                                    <th className="text-left py-4 px-6 font-medium text-muted-foreground">
+                                        Username
+                                    </th>
+                                    <th className="text-left py-4 px-6 font-medium text-muted-foreground">
+                                        Role
+                                    </th>
+                                    <th className="text-left py-4 px-6 font-medium text-muted-foreground">
+                                        Created Date
+                                    </th>
+                                    <th className="text-right py-4 px-6 font-medium text-muted-foreground">
+                                        Actions
+                                    </th>
                                 </tr>
                                 </thead>
                                 <tbody>
@@ -599,22 +834,34 @@ const StaffManagementPage = () => {
                                                 </div>
                                             </td>
                                             <td>
-                                                <Badge className={getRoleColor(account.role)}>{account.role}</Badge>
+                                                <Badge className={getRoleColor(account.role)}>
+                                                    {ROLE_LABEL[account.role]}
+                                                </Badge>
                                             </td>
                                             <td className="text-muted-foreground">{account.createdAt}</td>
                                             <td className="text-right">
                                                 <div className="flex items-center justify-end gap-2">
-                                                    <Button variant="ghost" size="sm" onClick={() => handleEditUserAccount(account)}>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleEditUserAccount(account)}
+                                                    >
                                                         <Edit className="w-4 h-4" />
                                                     </Button>
                                                     <Button
                                                         variant="ghost"
                                                         size="sm"
-                                                        onClick={() =>
-                                                        {
+                                                        onClick={() => {
+                                                            setSelectedUserAccount({
+                                                                id: account.id,
+                                                                username: account.name,
+                                                                role:
+                                                                    (accountsRes?.find((u) => u.id === account.id)?.role ??
+                                                                        "WAITSTAFF").toUpperCase(),
+                                                                passwordText: account.passwordText ?? "",
+                                                            });
                                                             setIsUserDeleteDialogOpen(true);
-                                                        }
-                                                        }
+                                                        }}
                                                     >
                                                         <Trash2 className="w-4 h-4" />
                                                     </Button>
@@ -631,9 +878,13 @@ const StaffManagementPage = () => {
                     {/* Mobile cards */}
                     <div className="lg:hidden space-y-4">
                         {isAccountsLoading ? (
-                            <Card className="mobile-card p-4 text-sm text-muted-foreground">Fetching user accounts...</Card>
+                            <Card className="mobile-card p-4 text-sm text-muted-foreground">
+                                Fetching user accounts...
+                            </Card>
                         ) : filteredUserAccounts.length === 0 ? (
-                            <Card className="mobile-card p-4 text-sm text-muted-foreground">No user accounts found.</Card>
+                            <Card className="mobile-card p-4 text-sm text-muted-foreground">
+                                No user accounts found.
+                            </Card>
                         ) : (
                             filteredUserAccounts.map((account) => (
                                 <Card key={account.id} className="mobile-card">
@@ -642,7 +893,9 @@ const StaffManagementPage = () => {
                                             <User className="w-4 h-4" />
                                             <h4 className="font-semibold text-foreground">{account.name}</h4>
                                         </div>
-                                        <Badge className={getRoleColor(account.role)}>{account.role}</Badge>
+                                        <Badge className={getRoleColor(account.role)}>
+                                            {ROLE_LABEL[account.role]}
+                                        </Badge>
                                     </div>
                                     <div className="space-y-2 text-sm text-muted-foreground">
                                         <p>
@@ -650,7 +903,11 @@ const StaffManagementPage = () => {
                                         </p>
                                     </div>
                                     <div className="flex items-center justify-end gap-2 mt-4 pt-4 border-t border-border">
-                                        <Button variant="outline" size="sm" onClick={() => handleEditUserAccount(account)}>
+                                        <Button
+                                            variant="outline"
+                                            size="sm"
+                                            onClick={() => handleEditUserAccount(account)}
+                                        >
                                             <Edit className="w-4 h-4 mr-1" />
                                             Edit
                                         </Button>
@@ -658,6 +915,14 @@ const StaffManagementPage = () => {
                                             variant="outline"
                                             size="sm"
                                             onClick={() => {
+                                                setSelectedUserAccount({
+                                                    id: account.id,
+                                                    username: account.name,
+                                                    role:
+                                                        (accountsRes?.find((u) => u.id === account.id)?.role ??
+                                                            "WAITSTAFF").toUpperCase(),
+                                                    passwordText: account.passwordText ?? "",
+                                                });
                                                 setIsUserDeleteDialogOpen(true);
                                             }}
                                         >
@@ -679,6 +944,8 @@ const StaffManagementPage = () => {
                 onSubmit={handleFormSubmitFromModal}
                 staff={selectedModalStaff}
                 mode={formMode}
+                isEmailTaken={(email, excludeId) => isDuplicateEmail(email, excludeId)}
+                isPhoneTaken={(phone, excludeId) => isDuplicatePhone(phone, excludeId)}
             />
 
             <UserAccountFormModal
@@ -707,7 +974,75 @@ const StaffManagementPage = () => {
                 itemName={selectedUserAccount?.username}
                 isLoading={isSubmitting}
             />
+
+            {/* Modal tạo account cho staff */}
+            <Dialog open={isCreateAccountOpen} onOpenChange={setIsCreateAccountOpen}>
+                <DialogContent className="sm:max-w-md">
+                    <DialogHeader>
+                        <DialogTitle>Create Account for Staff</DialogTitle>
+                        <p className="text-sm text-muted-foreground">
+                            Link a login account to this staff. Password will be stored hashed in User and kept as plain text in Staff for editing.
+                        </p>
+                    </DialogHeader>
+
+                    <div className="space-y-4">
+                        {selectedStaffForAccount && (
+                            <div className="text-sm text-muted-foreground border rounded-md p-3 bg-muted/40">
+                                <div className="font-medium text-foreground">
+                                    {selectedStaffForAccount.name}
+                                </div>
+                                <div>{selectedStaffForAccount.email}</div>
+                            </div>
+                        )}
+
+                        <div className="grid gap-2">
+                            <Label>Username</Label>
+                            <Input
+                                value={accountUsername}
+                                onChange={(e) => setAccountUsername(e.target.value)}
+                                placeholder="Enter username..."
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label>Password</Label>
+                            <Input
+                                type="password"
+                                value={accountPassword}
+                                onChange={(e) => setAccountPassword(e.target.value)}
+                                placeholder="Enter password..."
+                            />
+                        </div>
+
+                        <div className="grid gap-2">
+                            <Label>Confirm Password</Label>
+                            <Input
+                                type="password"
+                                value={accountPasswordConfirm}
+                                onChange={(e) => setAccountPasswordConfirm(e.target.value)}
+                                placeholder="Confirm password..."
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-2 pt-2">
+                            <Button
+                                variant="outline"
+                                onClick={() => {
+                                    setIsCreateAccountOpen(false);
+                                    setSelectedStaffForAccount(null);
+                                }}
+                            >
+                                Cancel
+                            </Button>
+                            <Button onClick={handleCreateAccountSubmit}>Create Account</Button>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
+
+
         </div>
+
     );
 };
 

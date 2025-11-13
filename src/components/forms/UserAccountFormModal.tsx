@@ -1,3 +1,4 @@
+// src/components/forms/UserAccountFormModal.tsx
 import React, { useEffect } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -7,14 +8,14 @@ import { Label } from "@/components/ui/label";
 export interface UserAccountModalData {
     id: number;
     username: string;
-    role: string; // giữ dạng 'ROLE_*'
+    role: string; // DB role name: "WAITSTAFF", "KITCHEN_STAFF", "CASHIER", "ADMIN"
     passwordText?: string | null;
 }
 
 type SubmitPayload = {
     username: string;
     password?: string;
-    role?: string;
+    role?: string; // gửi thẳng DB role string lên BE
 };
 
 interface Props {
@@ -27,25 +28,24 @@ interface Props {
 const UserAccountFormModal: React.FC<Props> = ({ open, onOpenChange, initial, onSubmit }) => {
     const [username, setUsername] = React.useState<string>("");
     const [password, setPassword] = React.useState<string>("");
-    const [role, setRole] = React.useState<string>("ROLE_WAITER");
+    const [role, setRole] = React.useState<string>("WAITSTAFF"); // default waiter
 
     useEffect(() => {
         if (initial) {
             setUsername(initial.username ?? "");
             setPassword(initial.passwordText ?? "");
-            const roleValue = initial.role?.startsWith("ROLE_") ? initial.role : `ROLE_${initial.role}`;
-            setRole(roleValue);
+            setRole((initial.role ?? "WAITSTAFF").toUpperCase());
         } else {
             setUsername("");
             setPassword("");
-            setRole("ROLE_WAITER");
+            setRole("WAITSTAFF");
         }
     }, [initial, open]);
 
     const handleSave = () => {
         const payload: SubmitPayload = { username };
         if (password) payload.password = password;
-        if (role) payload.role = role;
+        if (role) payload.role = role; // ví dụ: "ADMIN" / "WAITSTAFF" / "KITCHEN_STAFF" / "CASHIER"
         onSubmit(payload);
     };
 
@@ -86,10 +86,10 @@ const UserAccountFormModal: React.FC<Props> = ({ open, onOpenChange, initial, on
                             value={role}
                             onChange={(e) => setRole(e.target.value)}
                         >
-                            <option value="ROLE_ADMIN">Admin</option>
-                            <option value="ROLE_WAITER">Waiter</option>
-                            <option value="ROLE_CHEF">Chef</option>
-                            <option value="ROLE_CASHIER">Cashier</option>
+                            <option value="ADMIN">Admin</option>
+                            <option value="WAITSTAFF">Waiter</option>
+                            <option value="KITCHEN_STAFF">Chef</option>
+                            <option value="CASHIER">Cashier</option>
                         </select>
                     </div>
 

@@ -1,3 +1,4 @@
+// src/components/forms/StaffFormModal.tsx
 import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -29,21 +30,20 @@ import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
-/** ✨ Schema chỉ còn 4 vai trò hợp lệ */
+/** ✨ Schema chỉ còn 4 vai trò + không còn initialPassword */
 const staffSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters").max(50, "Name too long"),
     role: z.enum(["waiter", "chef", "cashier", "admin"]),
     email: z.string().email("Invalid email address"),
     phone: z.string().min(10, "Phone number must be at least 10 digits"),
     joinDate: z.string().min(1, "Join date is required"),
-    initialPassword: z.string().min(6, "Password must be at least 6 characters").optional(),
 });
 
-type StaffFormData = z.infer<typeof staffSchema>;
+export type StaffFormData = z.infer<typeof staffSchema>;
 
 interface Staff {
     id: number;
-    name: string;
+    name: "waiter" | "chef" | "cashier" | "admin" | string;
     role: "waiter" | "chef" | "cashier" | "admin";
     email: string;
     phone: string;
@@ -53,12 +53,22 @@ interface Staff {
 interface StaffFormModalProps {
     isOpen: boolean;
     onClose: () => void;
-    onSubmit: (data: StaffFormData) => void;
+    onSubmit: (data: StaffFormData) => void | Promise<void>;
     staff?: Staff;
     mode: "add" | "edit";
+    isEmailTaken?: (email: string, excludeId?: number) => boolean;
+    isPhoneTaken?: (phone: string, excludeId?: number) => boolean;
 }
 
-const StaffFormModal = ({ isOpen, onClose, onSubmit, staff, mode }: StaffFormModalProps) => {
+const StaffFormModal = ({
+                            isOpen,
+                            onClose,
+                            onSubmit,
+                            staff,
+                            mode,
+                            isEmailTaken,
+                            isPhoneTaken,
+                        }: StaffFormModalProps) => {
     const { toast } = useToast();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -70,13 +80,12 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit, staff, mode }: StaffFormMod
             email: "",
             phone: "",
             joinDate: new Date().toISOString().split("T")[0],
-            initialPassword: "123456",
         },
     });
 
     useEffect(() => {
         if (staff && mode === "edit") {
-            form.setValue("name", staff.name);
+            form.setValue("name", String(staff.name));
             form.setValue("role", staff.role);
             form.setValue("email", staff.email);
             form.setValue("phone", staff.phone);
@@ -88,7 +97,6 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit, staff, mode }: StaffFormMod
                 email: "",
                 phone: "",
                 joinDate: new Date().toISOString().split("T")[0],
-                initialPassword: "123456",
             });
         }
     }, [staff, mode, form]);
@@ -96,17 +104,51 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit, staff, mode }: StaffFormMod
     const handleSubmit = async (data: StaffFormData) => {
         setIsSubmitting(true);
         try {
-            onSubmit(data);
-            toast({
-                title: mode === "add" ? "Staff Member Added" : "Staff Member Updated",
-                description: `${data.name} has been ${mode === "add" ? "added" : "updated"} successfully.`,
-            });
-            onClose();
-            form.reset();
-        } catch {
+            const trimmedEmail = data.email.trim().toLowerCase();
+            const normalizedPhone = data.phone.replace(/[^\d]/g, "");
+
+            const excludeId = mode === "edit" && staff ? staff.id : undefined;
+            let hasError = false;
+
+            form.clearErrors(["email", "phone"]);
+
+            if (isEmailTaken && trimmedEmail) {
+                const duplicated = isEmailTaken(trimmedEmail, excludeId);
+                if (duplicated) {
+                    form.setError("email", {
+                        type: "manual",
+                        message: "Email already exists",
+                    });
+                    hasError = true;
+                }
+            }
+
+            if (isPhoneTaken && normalizedPhone) {
+                const duplicated = isPhoneTaken(normalizedPhone, excludeId);
+                if (duplicated) {
+                    form.setError("phone", {
+                        type: "manual",
+                        message: "Phone number already exists",
+                    });
+                    hasError = true;
+                }
+            }
+
+            if (hasError) return;
+
+            const payload: StaffFormData = {
+                ...data,
+                email: trimmedEmail,
+                phone: normalizedPhone,
+            };
+
+            await onSubmit(payload);
+        } catch (e) {
+            const msg =
+                e instanceof Error && e.message ? e.message : "Something went wrong. Please try again.";
             toast({
                 title: "Error",
-                description: "Something went wrong. Please try again.",
+                description: msg,
                 variant: "destructive",
             });
         } finally {
@@ -180,7 +222,16 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit, staff, mode }: StaffFormMod
                                 <FormItem>
                                     <FormLabel>Email Address</FormLabel>
                                     <FormControl>
-                                        <Input type="email" placeholder="john@restaurant.com" {...field} />
+                                        <Input
+                                            type="email"
+                                            placeholder="john@restaurant.com"
+                                            {...field}
+                                            onBlur={(e) => {
+                                                const value = e.target.value.trim();
+                                                form.setValue("email", value);
+                                                field.onBlur();
+                                            }}
+                                        />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
@@ -194,31 +245,20 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit, staff, mode }: StaffFormMod
                                 <FormItem>
                                     <FormLabel>Phone Number</FormLabel>
                                     <FormControl>
-                                        <Input placeholder="+1 234-567-8901" {...field} />
+                                        <Input
+                                            placeholder="+1 234-567-8901"
+                                            {...field}
+                                            onBlur={(e) => {
+                                                const value = e.target.value.replace(/[^\d]/g, "");
+                                                form.setValue("phone", value);
+                                                field.onBlur();
+                                            }}
+                                        />
                                     </FormControl>
                                     <FormMessage />
                                 </FormItem>
                             )}
                         />
-
-                        {mode === "add" && (
-                            <FormField
-                                control={form.control}
-                                name="initialPassword"
-                                render={({ field }) => (
-                                    <FormItem>
-                                        <FormLabel>Initial Password</FormLabel>
-                                        <FormControl>
-                                            <Input type="text" placeholder="Default: 123456" {...field} />
-                                        </FormControl>
-                                        <FormMessage />
-                                        <p className="text-sm text-muted-foreground">
-                                            Default password for the user account. Can be changed later.
-                                        </p>
-                                    </FormItem>
-                                )}
-                            />
-                        )}
 
                         <FormField
                             control={form.control}
