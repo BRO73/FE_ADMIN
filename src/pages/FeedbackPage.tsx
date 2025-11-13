@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Search, Star, MessageSquare, Calendar, Plus, Trash2, Edit, Filter, X } from "lucide-react";
+import { Search, Star, MessageSquare, Calendar, Filter, X, Phone, Mail } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,7 +14,6 @@ import {
   ReviewRequest,
 } from "@/api/review.api";
 import FeedbackFormModal from "@/components/forms/FeedbackFormModal";
-import DeleteConfirmDialog from "@/components/forms/DeleteConfirmDialog";
 
 const FeedbackPage = () => {
   const { toast } = useToast();
@@ -23,7 +22,6 @@ const FeedbackPage = () => {
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedRating, setSelectedRating] = useState<string>("all");
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
-  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [formMode, setFormMode] = useState<"add" | "edit">("add");
   const [selectedFeedback, setSelectedFeedback] = useState<ReviewResponse | undefined>();
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -56,11 +54,6 @@ const FeedbackPage = () => {
   // CRUD HANDLERS
   // ===============================
 
-  const handleDeleteFeedback = (review: ReviewResponse) => {
-    setSelectedFeedback(review);
-    setIsDeleteDialogOpen(true);
-  };
-
   const handleFormSubmit = async (data: ReviewRequest) => {
     setIsSubmitting(true);
     try {
@@ -87,28 +80,6 @@ const FeedbackPage = () => {
       toast({
         title: "Error",
         description: "Failed to save feedback.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSubmitting(false);
-    }
-  };
-
-  const handleDeleteConfirm = async () => {
-    if (!selectedFeedback) return;
-    setIsSubmitting(true);
-    try {
-      await deleteReview(selectedFeedback.id);
-      toast({
-        title: "Deleted",
-        description: `Feedback #${selectedFeedback.id} deleted successfully.`,
-      });
-      setIsDeleteDialogOpen(false);
-      await fetchFeedback();
-    } catch {
-      toast({
-        title: "Error",
-        description: "Failed to delete feedback.",
         variant: "destructive",
       });
     } finally {
@@ -339,28 +310,35 @@ const FeedbackPage = () => {
                           <h4 className="font-bold text-foreground text-lg">
                             {item.customerName?.trim() || "Anonymous Customer"}
                           </h4>
-                          {item.customerEmail?.trim() && (
-                            <p className="text-sm text-muted-foreground mt-1">{item.customerEmail}</p>
-                          )}
+                          
+                          {/* Contact Info - Email and Phone in one section */}
+                          <div className="mt-2 space-y-2">
+                            {item.customerEmail?.trim() && (
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Mail className="w-4 h-4" />
+                                <span className="text-sm">{item.customerEmail}</span>
+                              </div>
+                            )}
+                            
+                            {item.customerPhone && (
+                              <div className="flex items-center gap-2 text-muted-foreground">
+                                <Phone className="w-4 h-4" />
+                                <span className="text-sm">{item.customerPhone}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
 
-                        {/* Order & Date Info Box */}
-                        <div className="bg-gray-50 rounded-lg p-3 space-y-2 border">
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <Calendar className="w-4 h-4" />
-                            <span className="text-sm font-medium">
-                              {new Date(item.createdAt).toLocaleDateString('en-US', {
-                                year: 'numeric',
-                                month: 'short',
-                                day: 'numeric'
-                              })}
-                            </span>
-                          </div>
-                          
-                          <div className="flex items-center gap-2 text-muted-foreground">
-                            <div className="w-3 h-3 bg-green-500 rounded-full"></div>
-                            <span className="text-sm font-medium">Order #{item.orderId}</span>
-                          </div>
+                        {/* Date Info - Separate section */}
+                        <div className="flex items-center gap-2 text-muted-foreground bg-gray-50 rounded-lg p-3 border">
+                          <Calendar className="w-4 h-4" />
+                          <span className="text-sm font-medium">
+                            Reviewed on {new Date(item.createdAt).toLocaleDateString('en-US', {
+                              year: 'numeric',
+                              month: 'short',
+                              day: 'numeric'
+                            })}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -387,25 +365,12 @@ const FeedbackPage = () => {
                   </div>
 
                   {/* Comment Box */}
-                  <div className="bg-gradient-to-r from-gray-50 to-blue-50 border border-gray-200 rounded-xl p-4 mb-4 relative">
+                  <div className="bg-gradient-to-r from-gray-50 to-blue-50 border border-gray-200 rounded-xl p-4 relative">
                     <div className="absolute top-3 left-3 text-3xl text-gray-300">"</div>
                     <p className="text-foreground leading-relaxed text-base pl-6">
                       {item.comment}
                     </p>
                     <div className="absolute bottom-3 right-3 text-3xl text-gray-300">"</div>
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex items-center justify-end gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDeleteFeedback(item)}
-                      className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
-                    >
-                      <Trash2 className="w-4 h-4 mr-2" /> 
-                      Delete
-                    </Button>
                   </div>
                 </div>
               </div>
@@ -427,7 +392,7 @@ const FeedbackPage = () => {
         </Card>
       )}
 
-      {/* Modals */}
+      {/* Modal */}
       <FeedbackFormModal
         isOpen={isFormModalOpen}
         onClose={() => setIsFormModalOpen(false)}
@@ -442,16 +407,6 @@ const FeedbackPage = () => {
         }
         mode={formMode}
         onSubmit={handleFormSubmit}
-      />
-
-      <DeleteConfirmDialog
-        isOpen={isDeleteDialogOpen}
-        onClose={() => setIsDeleteDialogOpen(false)}
-        onConfirm={handleDeleteConfirm}
-        title="Delete Feedback"
-        description="Are you sure you want to delete this feedback? This action cannot be undone."
-        itemName={selectedFeedback?.id?.toString()}
-        isLoading={isSubmitting}
       />
     </div>
   );

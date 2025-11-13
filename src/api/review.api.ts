@@ -17,6 +17,7 @@ export interface ReviewResponse {
   activated: boolean;
   customerName?: string;   
   customerEmail?: string; 
+  customerPhone: string;
 }
 
 // Mapper (nếu cần chỉnh dữ liệu về FE)
@@ -31,6 +32,7 @@ const mapToReview = (res: ReviewResponse): ReviewResponse => ({
   activated: res.activated,
   customerName: res.customerName,   
   customerEmail: res.customerEmail,
+  customerPhone: res.customerPhone,
 });
 
 
