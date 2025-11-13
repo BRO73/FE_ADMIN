@@ -23,6 +23,7 @@ import CartItem from "./pages/CartItem";
 import MenuPage from "./pages/MenuPage";
 import FirebaseOtpLogin from "@/components/login/FirebaseOtpLogin";
 import CustomerManagementPage from "./pages/CustomerManagementPage";
+import Profile from "./pages/Profile";
 
 
 import KitchenDashboardPage from "./pages/KitchenDashboardPage";
@@ -46,6 +47,7 @@ const App = () => (
             <Route path="/cart" element={<CartItem />} />
             <Route path="/" element={<Navigate to="/admin" replace />} />
             <Route path="/otp-login" element={<FirebaseOtpLogin />} />
+            <Route path="/profile" element={<Profile />} />
 
               <Route path="kitchen" element={<KitchenDashboardPage />} />
 
@@ -62,7 +64,7 @@ const App = () => (
               <Route path="reports" element={<ReportsPage />} />
               <Route path="transactions" element={<TransactionsPage />} />
               <Route path="tablemap" element={<TableMapEditor />} />
-
+              
 
 
             </Route>

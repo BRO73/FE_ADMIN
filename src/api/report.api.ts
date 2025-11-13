@@ -7,6 +7,7 @@ export interface RevenueDay {
 }
 
 export interface TopItem {
+  id: number;
   name: string;
   orders: number;
   revenue: number;
@@ -25,8 +26,20 @@ export interface PeakHour {
 }
 
 export interface TopCustomer {
+  id: number;          
   name: string;
   revenue: number;
+  visitCount: number;  
+}
+
+export interface LowRatingReview {
+  id: number;
+  orderId: number;
+  customerName?: string;
+  customerEmail?: string;
+  ratingScore: number;
+  comment: string;
+  createdAt: string;
 }
 
 // Lấy thống kê tổng theo ngày
@@ -68,4 +81,10 @@ export const getPeakHours = async (days: number): Promise<PeakHour[]> => {
   const { data } = await api.get(`/reports/peak-hours?days=${days}`);
   return data;
 };
+
+export const getLowRatingReviews = async (): Promise<LowRatingReview[]> => {
+  const { data } = await api.get('/reports/reviews/low-rating');
+  return data;
+};
+
 

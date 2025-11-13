@@ -8,7 +8,6 @@ import { useToast } from "@/hooks/use-toast";
 
 const Register = () => {
   const [formData, setFormData] = useState({
-    storeName: "",
     username: "",
     password: "",
     confirmPassword: "",
@@ -32,10 +31,6 @@ const Register = () => {
 
   const validateForm = () => {
     const newErrors: Record<string, string> = {};
-
-    if (!formData.storeName.trim()) {
-      newErrors.storeName = "Tên cửa hàng không được để trống";
-    }
     if (!formData.username.trim()) {
       newErrors.username = "Tên đăng nhập không được để trống";
     } else if (formData.username.length < 3) {
@@ -71,7 +66,6 @@ const Register = () => {
         body: JSON.stringify({
           username: formData.username,
           password: formData.password,
-          storeName: formData.storeName,
           role: formData.role,
         }),
       });
@@ -90,7 +84,6 @@ const Register = () => {
 
       // reset form sau khi đăng ký
       setFormData({
-        storeName: "",
         username: "",
         password: "",
         confirmPassword: "",
@@ -114,14 +107,6 @@ const Register = () => {
 
         <div className="auth-card">
           <form onSubmit={handleSubmit} className="space-y-6">
-            <FloatingInput
-              name="storeName"
-              type="text"
-              label="Tên cửa hàng"
-              value={formData.storeName}
-              onChange={handleInputChange}
-              error={errors.storeName}
-            />
 
             <FloatingInput
               name="username"
@@ -159,9 +144,6 @@ const Register = () => {
                 className="w-full border rounded-md p-2 focus:ring focus:ring-primary focus:outline-none"
               >
                 <option value="ADMIN">ADMIN</option>
-                <option value="WAITSTAFF">WAITSTAFF</option>
-                <option value="KITCHEN_STAFF">KITCHEN_STAFF</option>
-                <option value="CASHIER">CASHIER</option>
               </select>
             </div>
 

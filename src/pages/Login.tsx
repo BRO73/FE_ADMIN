@@ -72,6 +72,7 @@ const Login = () => {
       // ✅ Lưu token vào localStorage
       localStorage.setItem("accessToken", data.data.accessToken);
       localStorage.setItem("refreshToken", data.data.refreshToken);
+      localStorage.setItem("user", JSON.stringify(data.data));
 
       toast({
         title: "Đăng nhập thành công!",
@@ -134,7 +135,6 @@ const Login = () => {
               Đăng nhập bằng số điện thoại (OTP)
             </button>
           </div>
-
 
           <div className="text-center mt-6">
             <Link to="/register" className="btn-link">
