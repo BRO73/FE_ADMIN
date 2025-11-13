@@ -12,12 +12,13 @@ import DeleteConfirmDialog from "@/components/forms/DeleteConfirmDialog";
 import { useTables } from "@/hooks/useTables";
 import { useLocations } from "@/hooks/useLocations";
 import { TableFormData, TableResponse, LocationResponse, LocationFormData } from "@/types/type";
+import {SelectDateButton} from "@/components/SelectDateButton";
 
 const TableManagementPage = () => {
   const { toast } = useToast();
 
   // Tables hook
-  const { tables, loading, error, addTable, editTable, removeTable } = useTables();
+  const { tables, loading, error, addTable, editTable, removeTable,getTableByDay } = useTables();
 
   // Locations hook
   const { locations, loading: locationLoading, error: locationError, addLocation, editLocation, removeLocation } = useLocations();
@@ -38,6 +39,8 @@ const TableManagementPage = () => {
   const [isLocationDeleteDialogOpen, setIsLocationDeleteDialogOpen] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const [TablesByDay, setTablesByDay] = useState<TableResponse[]>([]);
 
   // Filtered tables
   const filteredTables = tables.filter(
@@ -105,7 +108,15 @@ const TableManagementPage = () => {
       setIsSubmitting(false);
     }
   };
+  const handleSelectDate = async (dateString: string) => {
+    console.log("Selected date:", dateString);
 
+    try {
+      await getTableByDay(dateString);
+    } catch (error) {
+      console.error("Failed to fetch table status by day:", error);
+    }
+  };
   const handleDeleteTableConfirm = async () => {
     if (!selectedTable) return;
     setIsSubmitting(true);
@@ -185,31 +196,40 @@ const TableManagementPage = () => {
         <TabsContent value="tables" className="space-y-6">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
             <Card className="flex-1">
-              <div className="flex flex-col sm:flex-row gap-4 p-4">
+              <div className="flex flex-col sm:flex-row gap-4 p-4 items-center">
+                {/* Search input */}
                 <div className="relative flex-1">
                   <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                   <Input
-                    placeholder="Search tables..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    className="pl-10"
+                      placeholder="Search tables..."
+                      value={searchTerm}
+                      onChange={(e) => setSearchTerm(e.target.value)}
+                      className="pl-10"
                   />
                 </div>
+
+                {/* Location filter */}
                 <select
-                  value={selectedLocationFilter}
-                  onChange={(e) => setSelectedLocationFilter(e.target.value)}
-                  className="border rounded-md p-2"
+                    value={selectedLocationFilter}
+                    onChange={(e) => setSelectedLocationFilter(e.target.value)}
+                    className="border rounded-md p-2"
                 >
                   <option value="all">All Locations</option>
                   {locations.map((loc) => (
-                    <option key={loc.id} value={loc.name}>
-                      {loc.name}
-                    </option>
+                      <option key={loc.id} value={loc.name}>
+                        {loc.name}
+                      </option>
                   ))}
                 </select>
+
+                {/* Date picker button */}
+                <SelectDateButton
+                    onSelectDate={handleSelectDate}
+                />
               </div>
             </Card>
             <Button onClick={handleAddTable}><Plus className="w-4 h-4 mr-2" /> Add Table</Button>
+
           </div>
 
           <Card>

@@ -32,6 +32,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useTables } from "@/hooks/useTables";
 import { Checkbox } from "@/components/ui/checkbox";
 import {BookingRequest, BookingResponse} from "@/types/type.ts";
+import {format} from "date-fns";
 
 
 // ✅ Schema khớp hoàn toàn BookingRequest
@@ -62,7 +63,7 @@ interface BookingFormModalProps {
 
 const BookingFormModal = ({ isOpen, onClose, onSubmit, booking, mode }: BookingFormModalProps) => {
     const { toast } = useToast();
-    const { tables, loading: tablesLoading } = useTables();
+    const { getTableByDay,tables, loading: tablesLoading } = useTables();
     const [isSubmitting, setIsSubmitting] = useState(false);
 
     const form = useForm<BookingFormData>({
@@ -78,6 +79,17 @@ const BookingFormModal = ({ isOpen, onClose, onSubmit, booking, mode }: BookingF
             bookingTime: new Date().toISOString().slice(0, 16),
         },
     });
+    const handleSelectDate = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const selectedDateTime = e.target.value; // ví dụ: "2025-11-06T20:30"
+        const selectedDate = selectedDateTime.split("T")[0]; // 👉 "2025-11-06"
+        const formatted = format(selectedDate, "yyyy-MM-dd");
+        updateTables(formatted);
+    };
+
+    async function updateTables(  date : string){
+        await getTableByDay(date);
+    }
+
 
     // ✅ Load khi edit
     useEffect(() => {
@@ -218,6 +230,27 @@ const BookingFormModal = ({ isOpen, onClose, onSubmit, booking, mode }: BookingF
                                 )}
                             />
                         </div>
+                        {/* Thời gian đặt */}
+                        <FormField
+                            control={form.control}
+                            name="bookingTime"
+                            render={({ field }) => (
+                                <FormItem>
+                                    <FormLabel>Thời gian đặt</FormLabel>
+                                    <FormControl>
+                                        <Input
+                                            type="datetime-local"
+                                            {...field}
+                                            onChange={(e) => {
+                                                field.onChange(e); // ✅ cập nhật giá trị cho form
+                                                handleSelectDate(e); // ✅ gọi thêm logic riêng của m
+                                            }}
+                                        />
+                                    </FormControl>
+                                    <FormMessage />
+                                </FormItem>
+                            )}
+                        />
 
                         {/* Chọn bàn */}
                         <FormItem>
@@ -244,18 +277,7 @@ const BookingFormModal = ({ isOpen, onClose, onSubmit, booking, mode }: BookingF
                             </p>
                         </FormItem>
 
-                        {/* Thời gian đặt */}
-                        <FormField
-                            control={form.control}
-                            name="bookingTime"
-                            render={({ field }) => (
-                                <FormItem>
-                                    <FormLabel>Thời gian đặt</FormLabel>
-                                    <FormControl><Input type="datetime-local" {...field} /></FormControl>
-                                    <FormMessage />
-                                </FormItem>
-                            )}
-                        />
+
 
                         {/* Trạng thái */}
                         <FormField
