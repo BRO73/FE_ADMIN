@@ -55,17 +55,6 @@ const FeedbackPage = () => {
   // ===============================
   // CRUD HANDLERS
   // ===============================
-  const handleAddFeedback = () => {
-    setFormMode("add");
-    setSelectedFeedback(undefined);
-    setIsFormModalOpen(true);
-  };
-
-  const handleEditFeedback = (review: ReviewResponse) => {
-    setFormMode("edit");
-    setSelectedFeedback(review);
-    setIsFormModalOpen(true);
-  };
 
   const handleDeleteFeedback = (review: ReviewResponse) => {
     setSelectedFeedback(review);
@@ -198,9 +187,6 @@ const FeedbackPage = () => {
             View and manage customer reviews submitted after orders.
           </p>
         </div>
-        <Button onClick={handleAddFeedback} className="bg-blue-600 hover:bg-blue-700 text-white">
-          <Plus className="w-4 h-4 mr-2" /> Add Feedback
-        </Button>
       </div>
 
       {/* Summary Cards */}
@@ -334,11 +320,6 @@ const FeedbackPage = () => {
                 : "No feedback available yet."
               }
             </p>
-            {!searchTerm && selectedRating === "all" && (
-              <Button onClick={handleAddFeedback} className="bg-blue-600 hover:bg-blue-700">
-                <Plus className="w-4 h-4 mr-2" /> Add First Review
-              </Button>
-            )}
           </Card>
         ) : (
           filteredFeedback.map((item) => (
@@ -416,15 +397,6 @@ const FeedbackPage = () => {
 
                   {/* Action Buttons */}
                   <div className="flex items-center justify-end gap-3">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleEditFeedback(item)}
-                      className="border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
-                    >
-                      <Edit className="w-4 h-4 mr-2" /> 
-                      Edit
-                    </Button>
                     <Button
                       variant="outline"
                       size="sm"
