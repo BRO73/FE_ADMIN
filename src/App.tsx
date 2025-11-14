@@ -24,13 +24,14 @@ import FirebaseOtpLogin from "@/components/login/FirebaseOtpLogin";
 import CustomerManagementPage from "./pages/CustomerManagementPage";
 import Profile from "./pages/Profile";
 import TableManagement from "./pages/TableManagement";
-
+import KitchenDashboardPage from "./pages/KitchenDashboardPage";
 import LiveOrderPage from "./pages/LiveOrderPage";
 import MenuOrderPage from "./pages/MenuOrderPage";
 
 
 import MenuAvailabilityPage from "./pages/MenuAvailabilityPage";
-import KitchenDashboardPage from "@/pages/KitchenDashboardPage.tsx";
+import KitchenDashboardPage from "./pages/KitchenDashboardPage";
+
 const queryClient = new QueryClient();
 
 const App = () => (
