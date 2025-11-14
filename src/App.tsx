@@ -24,7 +24,6 @@ import FirebaseOtpLogin from "@/components/login/FirebaseOtpLogin";
 import CustomerManagementPage from "./pages/CustomerManagementPage";
 import Profile from "./pages/Profile";
 import TableManagement from "./pages/TableManagement";
-import KitchenDashboardPage from "./pages/KitchenDashboardPage";
 import LiveOrderPage from "./pages/LiveOrderPage";
 import MenuOrderPage from "./pages/MenuOrderPage";
 
