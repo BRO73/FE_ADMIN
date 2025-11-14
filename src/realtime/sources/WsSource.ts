@@ -5,131 +5,167 @@ import type { KitchenRealtimeEvent } from "./IKitchenSource";
 import api from "@/api/axiosInstance";
 
 type Props = {
-    baseUrl: string;                  // ví dụ: http://localhost:8082
-    topics: string[];                 // ví dụ: ["/topic/kitchen/board"]
-    onEvent: (e: KitchenRealtimeEvent) => void;
+  baseUrl: string;
+  topics: string[];
+  onEvent: (e: KitchenRealtimeEvent) => void;
 };
 
 type ConnListener = (connected: boolean) => void;
 
 function getAuthHeader(): string | undefined {
-    // Lấy token sẵn có của axios (nếu bạn set ở interceptor)
-    const token = (api.defaults.headers.common?.Authorization as string | undefined) ??
-        (api.defaults.headers.common?.authorization as string | undefined);
-    if (token && token.startsWith("Bearer ")) return token;
-    return undefined;
+  const token =
+    (api.defaults.headers.common?.Authorization as string | undefined) ??
+    (api.defaults.headers.common?.authorization as string | undefined);
+  if (token && token.startsWith("Bearer ")) return token;
+  return undefined;
 }
 
 export class WsSource {
-    private readonly props: Props;
-    private client: Client | null = null;
-    private connected = false;
-    private unsubscribers: Array<() => void> = [];
-    private connListeners: Set<ConnListener> = new Set();
+  private readonly props: Props;
+  private client: Client | null = null;
+  private connected = false;
+  private unsubscribers: Array<() => void> = [];
+  private connListeners: Set<ConnListener> = new Set();
 
-    constructor(props: Props) {
-        this.props = props;
+  constructor(props: Props) {
+    this.props = props;
+    console.log("🔧 [WS] Initializing with baseUrl:", props.baseUrl);
+  }
+
+  public isConnected(): boolean {
+    return this.connected;
+  }
+
+  public onConnectionChange(listener: ConnListener): () => void {
+    this.connListeners.add(listener);
+    return () => this.connListeners.delete(listener);
+  }
+
+  private notifyConn(connected: boolean): void {
+    if (this.connected === connected) return;
+    this.connected = connected;
+    console.log(connected ? "🟢 [WS] Connected" : "🔴 [WS] Disconnected");
+    for (const l of this.connListeners) l(connected);
+  }
+
+  public start(): void {
+    if (this.client && this.client.active) {
+      console.log("⚠️ [WS] Already started");
+      return;
     }
 
-    public isConnected(): boolean {
-        return this.connected;
+    const wsUrl = `${this.props.baseUrl}/ws`;
+    const auth = getAuthHeader();
+
+    console.log("🚀 [WS] Starting connection to:", wsUrl);
+    if (auth) {
+      console.log("🔐 [WS] Using auth token:", auth.substring(0, 20) + "...");
     }
 
-    public onConnectionChange(listener: ConnListener): () => void {
-        this.connListeners.add(listener);
-        return () => this.connListeners.delete(listener);
-    }
+    const stomp = new Client({
+      webSocketFactory: () => {
+        console.log("🔌 [WS] Creating SockJS connection...");
+        return new SockJS(wsUrl) as unknown as IStompSocket;
+      },
+      reconnectDelay: 1000,
+      onStompError: (frame: IFrame) => {
+        console.error(
+          "❌ [WS] STOMP error:",
+          frame.headers["message"],
+          frame.body
+        );
+      },
+      onWebSocketClose: (evt: CloseEvent) => {
+        console.warn("🔌 [WS] Socket closed:", evt.code, evt.reason);
+        this.notifyConn(false);
+      },
+      onWebSocketError: (evt: Event) => {
+        console.error("❌ [WS] Socket error:", evt);
+      },
+      debug: (msg: string) => {
+        // Bật debug để thấy tất cả traffic
+        console.log("🐛 [WS][debug]", msg);
+      },
+      heartbeatIncoming: 10000,
+      heartbeatOutgoing: 10000,
+      connectHeaders: auth ? { Authorization: auth } : {},
+    });
 
-    private notifyConn(connected: boolean): void {
-        if (this.connected === connected) return;
-        this.connected = connected;
-        for (const l of this.connListeners) l(connected);
-    }
+    let nextDelay = 1000;
+    const maxDelay = 15000;
+    const baseDelay = 1000;
 
-    public start(): void {
-        if (this.client && this.client.active) {
-            return;
-        }
+    stomp.onDisconnect = () => {
+      console.log("↩️ [WS] Disconnected, will reconnect...");
+      this.notifyConn(false);
+      nextDelay = Math.min(maxDelay, nextDelay + baseDelay * 2);
+      stomp.reconnectDelay = nextDelay;
+    };
 
-        const wsUrl = `${this.props.baseUrl}/ws`;
-        const auth = getAuthHeader();
+    stomp.onConnect = () => {
+      console.log("🎉 [WS] CONNECTED SUCCESSFULLY!");
+      nextDelay = baseDelay;
+      stomp.reconnectDelay = baseDelay;
 
-        const stomp = new Client({
-            webSocketFactory: () => new SockJS(wsUrl) as unknown as IStompSocket,
-            reconnectDelay: 1000,                // ms, bước đầu
-            // Tăng dần reconnectDelay (exponential-ish)
-            onStompError: (frame: IFrame) => {
-                // Lỗi cấp broker (ví dụ không được SUBSCRIBE)
-                console.error("[WS] STOMP error:", frame.headers["message"], frame.body);
-            },
-            onWebSocketClose: (evt: CloseEvent) => {
-                console.warn("[WS] socket closed:", evt.code, evt.reason);
-                this.notifyConn(false);
-            },
-            debug: (msg: string) => {
-                // comment nếu quá ồn
-                // console.log("[WS][debug]", msg);
-            },
-            // Heartbeats (ms)
-            heartbeatIncoming: 10000,            // server -> client
-            heartbeatOutgoing: 10000,            // client -> server
-            connectHeaders: auth ? { Authorization: auth } : {},
+      this.props.topics.forEach((topic) => {
+        console.log("📡 [WS] Subscribing to topic:", topic);
+
+        const sub = stomp.subscribe(topic, (msg: IMessage) => {
+          console.log("📨 [WS] ===== MESSAGE RECEIVED =====");
+          console.log("📨 [WS] Raw body:", msg.body);
+
+          try {
+            const body = msg.body ? (JSON.parse(msg.body) as unknown) : null;
+            console.log("📦 [WS] Parsed payload:", body);
+
+            // Log số lượng items nếu có
+            if (body && typeof body === "object" && "items" in body) {
+              const items = (body as any).items;
+              if (Array.isArray(items)) {
+                console.log("📊 [WS] Items count:", items.length);
+              }
+            }
+
+            this.props.onEvent({ type: "BOARD_SNAPSHOT", payload: body });
+            console.log("✅ [WS] Event dispatched to handler");
+          } catch (e) {
+            console.error("❌ [WS] Failed to parse JSON:", e);
+            console.error("❌ [WS] Raw body was:", msg.body);
+          }
         });
 
-        // Tuning backoff: tăng dần reconnectDelay mỗi lần disconnect
-        let nextDelay = 1000;
-        const maxDelay = 15000;
-        const baseDelay = 1000;
+        console.log("✅ [WS] Subscribed to:", topic);
 
-        stomp.onDisconnect = () => {
-            this.notifyConn(false);
-            // tăng delay (có trần)
-            nextDelay = Math.min(maxDelay, nextDelay + baseDelay * 2);
-            stomp.reconnectDelay = nextDelay;
-        };
+        this.unsubscribers.push(() => {
+          try {
+            sub.unsubscribe();
+            console.log("🔕 [WS] Unsubscribed from:", topic);
+          } catch (err) {
+            console.error("⚠️ [WS] Error unsubscribing:", err);
+          }
+        });
+      });
 
-        stomp.onConnect = () => {
-            // reset delay khi thành công
-            nextDelay = baseDelay;
-            stomp.reconnectDelay = baseDelay;
+      this.notifyConn(true);
+    };
 
-            // Đăng ký các topic
-            this.props.topics.forEach((topic) => {
-                const sub = stomp.subscribe(topic, (msg: IMessage) => {
-                    // parse JSON an toàn
-                    try {
-                        const body = msg.body ? JSON.parse(msg.body) as unknown : null;
+    stomp.activate();
+    this.client = stomp;
+    console.log("⏳ [WS] Activation initiated...");
+  }
 
-                        // Chuẩn hóa event: FE đang expect BOARD_SNAPSHOT
-                        this.props.onEvent({ type: "BOARD_SNAPSHOT", payload: body });
-                    } catch (e) {
-                        console.error("[WS] invalid JSON payload:", e);
-                    }
-                });
-
-                // Lưu hàm hủy
-                this.unsubscribers.push(() => {
-                    try { sub.unsubscribe(); } catch { /**/ }
-                });
-            });
-
-            this.notifyConn(true);
-        };
-
-        stomp.activate();
-        this.client = stomp;
+  public async stop(): Promise<void> {
+    console.log("🛑 [WS] Stopping...");
+    try {
+      this.unsubscribers.forEach((u) => u());
+      this.unsubscribers = [];
+      if (this.client) {
+        await this.client.deactivate();
+      }
+    } finally {
+      this.client = null;
+      this.notifyConn(false);
+      console.log("✅ [WS] Stopped");
     }
-
-    public async stop(): Promise<void> {
-        try {
-            this.unsubscribers.forEach((u) => u());
-            this.unsubscribers = [];
-            if (this.client) {
-                await this.client.deactivate();
-            }
-        } finally {
-            this.client = null;
-            this.notifyConn(false);
-        }
-    }
+  }
 }

@@ -1,49 +1,44 @@
-import { RestPollSource } from "./sources/RestPollSource";
 import { WsSource } from "./sources/WsSource";
-import type { IKitchenSource, KitchenRealtimeEvent, Unsubscribe } from "./sources/IKitchenSource";
+import type {
+  IKitchenSource,
+  KitchenRealtimeEvent,
+  Unsubscribe,
+} from "./sources/IKitchenSource";
 import api from "@/api/axiosInstance";
 
 /** Lấy origin BE từ axios.baseURL ("http://localhost:8082/api" -> "http://localhost:8082") */
 function resolveApiBase(): string {
-    const raw = (api.defaults.baseURL ?? "").trim();
-    if (!raw) return "http://localhost:8082";
-    const noTrail = raw.replace(/\/+$/, "");
-    return noTrail.endsWith("/api") ? noTrail.slice(0, -4) : noTrail;
+  const raw = (api.defaults.baseURL ?? "").trim();
+  if (!raw) return "http://localhost:8082";
+  const noTrail = raw.replace(/\/+$/, "");
+  return noTrail.endsWith("/api") ? noTrail.slice(0, -4) : noTrail;
 }
 
-export function createKitchenSource(onEvent: (e: KitchenRealtimeEvent) => void): IKitchenSource {
-    const baseUrl = resolveApiBase();
-    const topics = ["/topic/kitchen/board"];
+export function createKitchenSource(
+  onEvent: (e: KitchenRealtimeEvent) => void
+): IKitchenSource {
+  const baseUrl = resolveApiBase();
+  const topics = ["/topic/kitchen/board"];
 
-    const ws = new WsSource({ baseUrl, topics, onEvent });
-    let poll: RestPollSource | null = new RestPollSource({
-        intervalMs: 5000,
-        onEvent,
-    });
+  // --- SỬA Ở ĐÂY ---
+  // 1. Chỉ tạo WsSource
+  const ws = new WsSource({ baseUrl, topics, onEvent });
 
-    const unsub: Unsubscribe = ws.onConnectionChange((connected) => {
-        if (connected) {
-            if (poll) {
-                poll.stop();
-                poll = null;
-            }
-        } else if (!poll) {
-            poll = new RestPollSource({ intervalMs: 5000, onEvent });
-            poll.start();
-        }
-    });
+  // 2. Xóa hoàn toàn logic của RestPollSource (poll) và fallback
+  // let poll: RestPollSource | null = ... (ĐÃ XÓA)
+  // const unsub: Unsubscribe = ... (ĐÃ XÓA)
 
-    return {
-        start() {
-            if (poll) poll.start(); // chạy trước khi WS sẵn sàng
-            ws.start();
-        },
-        stop() {
-            unsub();
-            ws.stop();
-            if (poll) poll.stop();
-        },
-        onConnectionChange: ws.onConnectionChange.bind(ws),
-        isConnected: () => ws.isConnected(),
-    };
+  return {
+    start() {
+      // if (poll) poll.start(); // (ĐÃ XÓA)
+      ws.start(); // Chỉ khởi động WebSocket
+    },
+    stop() {
+      // unsub(); // (ĐÃ XÓA)
+      ws.stop();
+      // if (poll) poll.stop(); // (ĐÃ XÓA)
+    },
+    onConnectionChange: ws.onConnectionChange.bind(ws),
+    isConnected: () => ws.isConnected(),
+  };
 }
