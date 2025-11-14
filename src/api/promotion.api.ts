@@ -1,4 +1,5 @@
 import api from "@/api/axiosInstance";
+import { Promotion } from "@/types/type";
 
 export interface PromotionResponse {
   id: number;
@@ -97,4 +98,39 @@ export const getActivePromotions = async () => {
 export const getPromotionsByType = async (type: string) => {
   const { data } = await api.get<PromotionResponse[]>(`/promotions/type/${type}`);
   return data.map(mapToPromotion);
+};
+
+export const getPromotionsByCode = async (code: string): Promise<Promotion[]> => {
+  try {
+    const { data } = await api.get(`/promotions/code/${code}`);
+    
+    console.log('API Response:', data); // Debug: xem cấu trúc dữ liệu thực tế
+    
+    // Nếu data là một object đơn lẻ, chuyển nó thành mảng
+    let promotionsData = data;
+    if (!Array.isArray(data)) {
+      promotionsData = [data];
+    }
+    
+    // Map dữ liệu từ API response sang interface Promotion của component
+    return promotionsData.map((promotion: any) => ({
+      id: promotion.id,
+      name: promotion.name,
+      code: promotion.code || '',
+      description: promotion.description || '',
+      promotionType: promotion.promotionType.toLowerCase() as 'percentage' | 'fixed',
+      value: promotion.value,
+      minSpend: promotion.minSpend || 0,
+      startDate: promotion.startDate,
+      endDate: promotion.endDate,
+      usageLimit: promotion.usageLimit || 0,
+      createdAt: promotion.createdAt || '',
+      updatedAt: promotion.updatedAt || '',
+      deleted: promotion.deleted || false,
+      activated: promotion.activated || false
+    }));
+  } catch (error) {
+    console.error('Error fetching promotion by code:', error);
+    throw error;
+  }
 };

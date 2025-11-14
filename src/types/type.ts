@@ -198,3 +198,21 @@ export interface StaffResponse {
   id: number;
   fullName: string;
 }
+
+
+export interface Promotion {
+  id: number;
+  name: string;
+  code: string;
+  description: string;
+  promotionType: "percentage" | "fixed"; 
+  minSpend: number;
+  startDate: string;
+  endDate: string;
+  usageLimit: number;
+  createdAt: string;
+  updatedAt: string;
+  deleted: boolean;
+  activated: boolean;
+  value: number;
+}

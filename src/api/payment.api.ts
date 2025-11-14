@@ -5,8 +5,10 @@ export interface PaymentRequestDTO {
   orderId: number;
   returnUrl: string;
   cancelUrl: string;
+  amount: number; // Thêm thuộc tính amount
+  discountCode?: string; // Thêm nếu chưa có
+  promotionId?: number; // Thêm nếu chưa có
 }
-
 // Response DTO
 export interface PaymentResponseDTO {
   transactionCode: string;
