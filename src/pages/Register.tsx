@@ -11,7 +11,7 @@ const Register = () => {
     username: "",
     password: "",
     confirmPassword: "",
-    role: "WAITSTAFF", // mặc định
+    role: "ADMIN", // mặc định
   });
 
   const [loading, setLoading] = useState(false);
@@ -87,7 +87,7 @@ const Register = () => {
         username: "",
         password: "",
         confirmPassword: "",
-        role: "WAITSTAFF",
+        role: "ADMIN",
       });
     } catch (error: any) {
       toast({

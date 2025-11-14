@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
+
 import {
   Dialog,
   DialogContent,
@@ -10,6 +11,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+
 import {
   Form,
   FormControl,
@@ -18,36 +20,25 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 
+// 🔥 Schema khớp backend Staff entity
 const staffSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters").max(50, "Name too long"),
-  role: z.enum(["manager", "waiter", "chef", "cleaner", "cashier"]),
-  email: z.string().email("Invalid email address"),
-  phone: z.string().min(10, "Phone number must be at least 10 digits"),
-  status: z.enum(["active", "inactive", "on-leave"]),
-  joinDate: z.string().min(1, "Join date is required"),
+  name: z.string().min(2, "Name must be at least 2 characters"),
+  email: z.string().email("Invalid email"),
+  phoneNumber: z.string().min(9, "Phone must be at least 9 digits"),
 });
 
-type StaffFormData = z.infer<typeof staffSchema>;
+export type StaffFormData = z.infer<typeof staffSchema>;
 
 interface Staff {
   id: number;
   name: string;
-  role: "manager" | "waiter" | "chef" | "cleaner" | "cashier";
   email: string;
-  phone: string;
-  status: "active" | "inactive" | "on-leave";
-  joinDate: string;
+  phoneNumber: string;
 }
 
 interface StaffFormModalProps {
@@ -58,7 +49,13 @@ interface StaffFormModalProps {
   mode: "add" | "edit";
 }
 
-const StaffFormModal = ({ isOpen, onClose, onSubmit, staff, mode }: StaffFormModalProps) => {
+const StaffFormModal = ({
+  isOpen,
+  onClose,
+  onSubmit,
+  staff,
+  mode,
+}: StaffFormModalProps) => {
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -66,77 +63,59 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit, staff, mode }: StaffFormMod
     resolver: zodResolver(staffSchema),
     defaultValues: {
       name: "",
-      role: "waiter",
       email: "",
-      phone: "",
-      status: "active",
-      joinDate: new Date().toISOString().split('T')[0],
+      phoneNumber: "",
     },
   });
 
   useEffect(() => {
     if (staff && mode === "edit") {
-      form.setValue("name", staff.name);
-      form.setValue("role", staff.role);
-      form.setValue("email", staff.email);
-      form.setValue("phone", staff.phone);
-      form.setValue("status", staff.status);
-      form.setValue("joinDate", staff.joinDate);
-    } else if (mode === "add") {
+      form.reset({
+        name: staff.name,
+        email: staff.email,
+        phoneNumber: staff.phoneNumber,
+      });
+    } else {
       form.reset({
         name: "",
-        role: "waiter",
         email: "",
-        phone: "",
-        status: "active",
-        joinDate: new Date().toISOString().split('T')[0],
+        phoneNumber: "",
       });
     }
-  }, [staff, mode, form]);
+  }, [staff, mode]);
 
   const handleSubmit = async (data: StaffFormData) => {
     setIsSubmitting(true);
+
     try {
       onSubmit(data);
+
       toast({
-        title: mode === "add" ? "Staff Member Added" : "Staff Member Updated",
-        description: `${data.name} has been ${mode === "add" ? "added" : "updated"} successfully.`,
+        title: mode === "add" ? "Staff Added" : "Staff Updated",
+        description: `${data.name} saved successfully.`,
       });
+
       onClose();
-      form.reset();
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "Something went wrong. Please try again.",
-        variant: "destructive",
-      });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleClose = () => {
-    form.reset();
-    onClose();
-  };
-
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
+    <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>
-            {mode === "add" ? "Add New Staff Member" : "Edit Staff Member"}
+            {mode === "add" ? "Add Staff" : "Edit Staff"}
           </DialogTitle>
           <DialogDescription>
-            {mode === "add" 
-              ? "Add a new staff member to your team."
-              : "Update the staff member information."
-            }
+            Enter staff information below.
           </DialogDescription>
         </DialogHeader>
 
         <Form {...form}>
           <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
+
             <FormField
               control={form.control}
               name="name"
@@ -153,37 +132,12 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit, staff, mode }: StaffFormMod
 
             <FormField
               control={form.control}
-              name="role"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Role</FormLabel>
-                  <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select role" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="manager">Manager</SelectItem>
-                        <SelectItem value="waiter">Waiter</SelectItem>
-                        <SelectItem value="chef">Chef</SelectItem>
-                        <SelectItem value="cashier">Cashier</SelectItem>
-                        <SelectItem value="cleaner">Cleaner</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
               name="email"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Email Address</FormLabel>
+                  <FormLabel>Email</FormLabel>
                   <FormControl>
-                    <Input type="email" placeholder="john@restaurant.com" {...field} />
+                    <Input type="email" placeholder="example@mail.com" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -192,49 +146,12 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit, staff, mode }: StaffFormMod
 
             <FormField
               control={form.control}
-              name="phone"
+              name="phoneNumber"
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Phone Number</FormLabel>
                   <FormControl>
-                    <Input placeholder="+1 234-567-8901" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="status"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Employment Status</FormLabel>
-                  <FormControl>
-                    <Select onValueChange={field.onChange} value={field.value}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="active">Active</SelectItem>
-                        <SelectItem value="inactive">Inactive</SelectItem>
-                        <SelectItem value="on-leave">On Leave</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-
-            <FormField
-              control={form.control}
-              name="joinDate"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Join Date</FormLabel>
-                  <FormControl>
-                    <Input type="date" {...field} />
+                    <Input placeholder="0987654321" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -242,18 +159,15 @@ const StaffFormModal = ({ isOpen, onClose, onSubmit, staff, mode }: StaffFormMod
             />
 
             <DialogFooter>
-              <Button
-                type="button"
-                variant="outline"
-                onClick={handleClose}
-                disabled={isSubmitting}
-              >
+              <Button variant="outline" onClick={onClose}>
                 Cancel
               </Button>
+
               <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : mode === "add" ? "Add Staff Member" : "Update Staff Member"}
+                {isSubmitting ? "Saving..." : mode === "add" ? "Add" : "Save"}
               </Button>
             </DialogFooter>
+
           </form>
         </Form>
       </DialogContent>

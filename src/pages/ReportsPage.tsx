@@ -32,7 +32,6 @@ import {
   getTopItemsLast7Days,
   getTopCustomers,
   getPeakHours,
-  getLowRatingReviews,
   DailyReport,
   RevenueDay,
   TopItem,
@@ -82,19 +81,17 @@ const ReportsPage = () => {
   const [topItems, setTopItems] = useState<TopItem[]>([]);
   const [topCustomers, setTopCustomers] = useState<TopCustomer[]>([]);
   const [peakHours, setPeakHours] = useState<PeakHour[]>([]);
-  const [lowRatingReviews, setLowRatingReviews] = useState<LowRatingReview[]>([]);
   const [loading, setLoading] = useState(true);
 
-useEffect(() => {
-  console.log("Top Items Data:", topItems);
-}, [topItems]);
+  useEffect(() => {
+    console.log("Top Items Data:", topItems);
+  }, [topItems]);
 
 
   const [showSalesChart, setShowSalesChart] = useState(true);
   const [showTopItemsChart, setShowTopItemsChart] = useState(true);
   const [showTopCustomersChart, setShowTopCustomersChart] = useState(true);
   const [showPeakHoursChart, setShowPeakHoursChart] = useState(true);
-  const [showLowRatingReviews, setShowLowRatingReviews] = useState(true);
 
   // 🧾 Hàm export PDF
   const handleExportPDF = async () => {
@@ -124,10 +121,10 @@ useEffect(() => {
       pdf.setTextColor(255, 255, 255);
       pdf.setFontSize(16);
       pdf.text("Restaurant Analytics Report", pdfWidth / 2, 12, { align: 'center' });
-      
+
       // Add content
       pdf.addImage(imgData, "PNG", 0, 25, pdfWidth, pdfHeight - 25);
-      
+
       // Add footer
       pdf.setFillColor(249, 250, 251);
       pdf.rect(0, pdf.internal.pageSize.getHeight() - 15, pdfWidth, 15, 'F');
@@ -140,7 +137,7 @@ useEffect(() => {
       );
 
       pdf.save(`restaurant_report_${new Date().toISOString().split("T")[0]}.pdf`);
-      
+
       toast({
         title: "PDF Exported",
         description: "Your report has been downloaded successfully.",
@@ -179,18 +176,17 @@ useEffect(() => {
         timeRange === "today"
           ? 1
           : timeRange === "7d"
-          ? 7
-          : timeRange === "30d"
-          ? 30
-          : 90;
+            ? 7
+            : timeRange === "30d"
+              ? 30
+              : 90;
 
-      const [daily, revenue, top, customers, hours, lowReviews] = await Promise.all([
+      const [daily, revenue, top, customers, hours] = await Promise.all([
         getDailyReport(start, end),
         getRevenueLast7Days(),
         getTopItemsLast7Days(),
         getTopCustomers(days),
         getPeakHours(days),
-        getLowRatingReviews(), // Thêm API call mới
       ]);
 
       setDailyReport(daily);
@@ -198,7 +194,6 @@ useEffect(() => {
       setTopItems(top);
       setTopCustomers(customers);
       setPeakHours(hours);
-      setLowRatingReviews(lowReviews);
     } catch (error) {
       console.error(error);
       toast({
@@ -274,11 +269,10 @@ useEffect(() => {
       {[1, 2, 3, 4, 5].map((star) => (
         <Star
           key={star}
-          className={`w-4 h-4 ${
-            star <= rating 
-              ? "fill-yellow-400 text-yellow-400" 
-              : "text-gray-300"
-          }`}
+          className={`w-4 h-4 ${star <= rating
+            ? "fill-yellow-400 text-yellow-400"
+            : "text-gray-300"
+            }`}
         />
       ))}
     </div>
@@ -311,7 +305,7 @@ useEffect(() => {
               </SelectContent>
             </Select>
 
-            <Button 
+            <Button
               onClick={handleExportPDF}
               className="bg-gradient-to-r from-blue-600 to-blue-700 hover:from-blue-700 hover:to-blue-800 text-white shadow-lg hover:shadow-xl transition-all duration-200"
             >
@@ -389,16 +383,16 @@ useEffect(() => {
                   <AreaChart data={salesData}>
                     <defs>
                       <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.3}/>
-                        <stop offset="95%" stopColor="#4F46E5" stopOpacity={0}/>
+                        <stop offset="5%" stopColor="#4F46E5" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#4F46E5" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                     <XAxis dataKey="day" tick={{ fill: '#64748b' }} />
                     <YAxis tick={{ fill: '#64748b' }} />
-                    <Tooltip 
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
+                    <Tooltip
+                      contentStyle={{
+                        backgroundColor: 'white',
                         border: '1px solid #e2e8f0',
                         borderRadius: '8px',
                         boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
@@ -423,58 +417,89 @@ useEffect(() => {
                     <p className="text-sm text-slate-600">Best performing dishes</p>
                   </div>
                 </div>
+
                 <Button
                   variant="ghost"
                   onClick={() => setShowTopItemsChart(!showTopItemsChart)}
                   size="sm"
                   className="text-slate-600 hover:text-slate-900"
                 >
-                  {showTopItemsChart ? (
-                    <ChevronUp className="w-4 h-4" />
-                  ) : (
-                    <ChevronDown className="w-4 h-4" />
-                  )}
+                  {showTopItemsChart ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
                 </Button>
               </div>
+
               {showTopItemsChart && (
-                <div className="flex flex-col items-center">
-                  <ResponsiveContainer width="100%" height={250}>
-                    <PieChart>
-                      <Pie
-                        data={topItems}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={100}
-                        paddingAngle={2}
-                        dataKey="revenue"
-                        label={({ name, percent }) => 
-                          `${name} (${(percent * 100).toFixed(1)}%)`
-                        }
+                <div className="space-y-3">
+                  {/* Header row */}
+                  <div className="grid grid-cols-12 gap-3 px-3 py-2 bg-slate-50 rounded-lg">
+                    <div className="col-span-1 text-xs font-medium text-slate-500">#</div>
+                    <div className="col-span-7 text-xs font-medium text-slate-500">Menu Item</div>
+                    <div className="col-span-2 text-xs font-medium text-right text-slate-500">Revenue</div>
+                    <div className="col-span-2 text-xs font-medium text-right text-slate-500">Orders</div>
+                  </div>
+
+                  {/* Rows */}
+                  <div className="max-h-[240px] overflow-y-auto space-y-2">
+                    {topItems.map((item, index) => (
+                      <div
+                        key={item.id}
+                        className="grid grid-cols-12 gap-3 px-3 py-2 bg-white rounded-lg border border-slate-100 hover:bg-slate-50 transition-colors"
                       >
-                        {topItems.map((_, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                            stroke="#fff"
-                            strokeWidth={2}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="mt-4 grid grid-cols-2 gap-2 w-full max-w-xs">
-                    {topItems.slice(0, 4).map((item, index) => (
-                      <div key={item.id} className="flex items-center gap-2 text-sm">
-                        <div 
-                          className="w-3 h-3 rounded-full" 
-                          style={{ backgroundColor: COLORS[index % COLORS.length] }}
-                        />
-                        <span className="text-slate-700 truncate">{item.name}</span>
+                        {/* Index */}
+                        <div className="col-span-1 flex items-center justify-center">
+                          <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-medium text-white
+                ${index === 0
+                              ? "bg-blue-800"
+                              : index === 1
+                                ? "bg-blue-600"
+                                : index === 2
+                                  ? "bg-blue-500"
+                                  : index === 3
+                                    ? "bg-blue-400"
+                                    : index === 4
+                                      ? "bg-blue-300"
+                                      : "bg-blue-200"
+                            }`}
+                          >
+                            {index + 1}
+                          </div>
+                        </div>
+
+                        {/* Item name */}
+                        <div className="col-span-7 flex items-center gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium text-slate-900 text-sm truncate">{item.name}</div>
+                          </div>
+                        </div>
+
+                        {/* Revenue */}
+                        <div className="col-span-2 flex items-center justify-end">
+                          <span className="font-semibold text-slate-900 text-sm">
+                            ${item.revenue.toLocaleString()}
+                          </span>
+                        </div>
+
+                        {/* Orders */}
+                        <div className="col-span-2 flex items-center justify-end">
+                          <span className="font-medium text-slate-700 text-sm">
+                            {item.orders}
+                          </span>
+                        </div>
                       </div>
                     ))}
                   </div>
+
+                  {/* Summary - chỉ hiển thị khi có dữ liệu */}
+                  {topItems.length > 0 && (
+                    <div className="pt-2 border-t border-slate-200">
+                      <div className="flex items-center justify-between text-xs text-slate-500">
+                        <span>Showing {topItems.length} items</span>
+                        <span className="font-medium">
+                          Total: ${topItems.reduce((sum, i) => sum + i.revenue, 0).toLocaleString()}
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               )}
             </Card>
@@ -557,24 +582,24 @@ useEffect(() => {
                 <ResponsiveContainer width="100%" height={300}>
                   <BarChart data={peakHours}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                    <XAxis 
-                      dataKey="hour" 
+                    <XAxis
+                      dataKey="hour"
                       tick={{ fill: '#64748b' }}
-                      tickFormatter={(h) => `${h}:00`} 
+                      tickFormatter={(h) => `${h}:00`}
                     />
                     <YAxis tick={{ fill: '#64748b' }} />
-                    <Tooltip 
+                    <Tooltip
                       formatter={(value: number) => [`$${value.toLocaleString()}`, 'Revenue']}
-                      contentStyle={{ 
-                        backgroundColor: 'white', 
+                      contentStyle={{
+                        backgroundColor: 'white',
                         border: '1px solid #e2e8f0',
                         borderRadius: '8px',
                         boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)'
                       }}
                     />
-                    <Bar 
-                      dataKey="revenue" 
-                      fill="url(#peakHoursGradient)" 
+                    <Bar
+                      dataKey="revenue"
+                      fill="url(#peakHoursGradient)"
                       radius={[6, 6, 0, 0]}
                     />
                     <defs>
@@ -588,77 +613,6 @@ useEffect(() => {
               )}
             </Card>
           </div>
-
-          {/* Low Rating Reviews Section */}
-          <Card className="p-6 bg-white/80 backdrop-blur-sm border-slate-200/50 shadow-lg hover:shadow-xl transition-all duration-300">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-rose-600 rounded-lg flex items-center justify-center shadow-lg">
-                  <AlertTriangle className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-semibold text-slate-900">Critical Feedback</h3>
-                  <p className="text-sm text-slate-600">Reviews with 3 stars or below</p>
-                </div>
-              </div>
-              <Button
-                variant="ghost"
-                onClick={() => setShowLowRatingReviews(!showLowRatingReviews)}
-                size="sm"
-                className="text-slate-600 hover:text-slate-900"
-              >
-                {showLowRatingReviews ? (
-                  <ChevronUp className="w-4 h-4" />
-                ) : (
-                  <ChevronDown className="w-4 h-4" />
-                )}
-              </Button>
-            </div>
-            {showLowRatingReviews && (
-              <div className="space-y-4">
-                {lowRatingReviews.length === 0 ? (
-                  <div className="text-center py-8 text-slate-500">
-                    <MessageSquare className="w-12 h-12 mx-auto mb-3 text-slate-300" />
-                    <p>No low rating reviews found. Great job!</p>
-                  </div>
-                ) : (
-                  lowRatingReviews.map((review) => (
-                    <div key={review.id} className="p-4 bg-red-50/50 border border-red-200 rounded-lg">
-                      <div className="flex items-start justify-between mb-3">
-                        <div className="flex items-center gap-3">
-                          <div className="flex flex-col">
-                            <div className="font-medium text-slate-900">
-                              {review.customerName || "Anonymous Customer"}
-                            </div>
-                            {review.customerEmail && (
-                              <div className="text-sm text-slate-600">{review.customerEmail}</div>
-                            )}
-                            <div className="text-xs text-slate-500 mt-1">
-                              Order #{review.orderId} • {new Date(review.createdAt).toLocaleDateString()}
-                            </div>
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <div className="bg-white px-3 py-1 rounded-full border border-red-200 flex items-center gap-1">
-                            {renderStars(review.ratingScore)}
-                            <span className="text-sm font-bold text-red-600 ml-1">
-                              {review.ratingScore}.0/5
-                            </span>
-                          </div>
-                          <div className={`px-2 py-1 rounded-full text-xs font-medium border ${getRatingColor(review.ratingScore)}`}>
-                            {getRatingText(review.ratingScore)}
-                          </div>
-                        </div>
-                      </div>
-                      <div className="bg-white p-3 rounded-lg border border-red-100">
-                        <p className="text-slate-800 leading-relaxed">{review.comment}</p>
-                      </div>
-                    </div>  
-                  ))
-                )}
-              </div>
-            )}
-          </Card>
         </div>
       </div>
     </div>
