@@ -82,9 +82,4 @@ export const getPeakHours = async (days: number): Promise<PeakHour[]> => {
   return data;
 };
 
-export const getLowRatingReviews = async (): Promise<LowRatingReview[]> => {
-  const { data } = await api.get('/reports/reviews/low-rating');
-  return data;
-};
-
 
