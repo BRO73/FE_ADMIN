@@ -24,11 +24,8 @@ import FirebaseOtpLogin from "@/components/login/FirebaseOtpLogin";
 import CustomerManagementPage from "./pages/CustomerManagementPage";
 import Profile from "./pages/Profile";
 import TableManagement from "./pages/TableManagement";
-import KitchenDashboardPage from "./pages/KitchenDashboardPage";
 import LiveOrderPage from "./pages/LiveOrderPage";
 import MenuOrderPage from "./pages/MenuOrderPage";
-
-
 import MenuAvailabilityPage from "./pages/MenuAvailabilityPage";
 import KitchenDashboardPage from "./pages/KitchenDashboardPage";
 
@@ -54,8 +51,6 @@ const App = () => (
             <Route path="/otp-login" element={<FirebaseOtpLogin />} />
             <Route path="/profile" element={<Profile />} />
 
-              <Route path="kitchen" element={<KitchenDashboardPage />} />
-
             <Route path="kitchen" element={<KitchenDashboardPage />} />
             <Route path="/tables" element={<TableManagement />} />
             <Route path="/live-order" element={<LiveOrderPage />} />
@@ -76,9 +71,6 @@ const App = () => (
               <Route path="reports" element={<ReportsPage />} />
               <Route path="transactions" element={<TransactionsPage />} />
               <Route path="tablemap" element={<TableMapEditor />} />
-              
-
-
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
