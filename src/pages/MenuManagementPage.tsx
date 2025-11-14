@@ -475,7 +475,7 @@ const MenuManagementPage = () => {
                             <td className="text-left py-4 px-6">
                               {item.imageUrl ? (
                                   <img
-                                      src={`http://localhost:8082${item.imageUrl}`}
+                                      src={item.imageUrl}
                                       alt={item.name}
                                       className="w-12 h-12 object-cover rounded"
                                   />

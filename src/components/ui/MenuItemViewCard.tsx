@@ -89,7 +89,7 @@ const MenuItemViewCard = ({ item, onUpdate }: MenuItemViewCardProps) => {
                 <div className="flex flex-col justify-center items-center h-full gap-2 w-full">
                   {editedItem.imageUrl ? (
                       <img
-                          src={`http://localhost:8082${editedItem.imageUrl}`}
+                          src={editedItem.imageUrl}
                           alt={editedItem.name}
                           className="w-full h-full object-contain rounded"
                       />
@@ -106,7 +106,7 @@ const MenuItemViewCard = ({ item, onUpdate }: MenuItemViewCardProps) => {
                 </div>
             ) : item.imageUrl ? (
                 <img
-                    src={`http://localhost:8082${item.imageUrl}`}
+                    src={item.imageUrl}
                     alt={item.name}
                     className="w-full h-full object-contain"
                 />
