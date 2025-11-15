@@ -36,7 +36,7 @@ const PromotionFormModal = ({
     title: "",
     code: "",
     description: "",
-    discountType: "percentage",
+    discountType: "PERCENTAGE",
     discountValue: 0,
     startDate: "",
     endDate: "",
@@ -64,7 +64,7 @@ const PromotionFormModal = ({
         title: "",
         code: "",
         description: "",
-        discountType: "percentage",
+        discountType: "PERCENTAGE",
         discountValue: 0,
         startDate: "",
         endDate: "",
@@ -74,11 +74,18 @@ const PromotionFormModal = ({
     }
   }, [promotion, mode, isOpen]);
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
+  const handleChange = (
+    e: React.ChangeEvent<
+      HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+    >
+  ) => {
     const { name, value } = e.target;
     setFormData({
       ...formData,
-      [name]: name === "discountValue" || name === "minSpend" || name === "maxUsage" ? Number(value) : value,
+      [name]:
+        name === "discountValue" || name === "minSpend" || name === "maxUsage"
+          ? Number(value)
+          : value,
     });
   };
 
@@ -87,10 +94,16 @@ const PromotionFormModal = ({
     try {
       if (mode === "add") {
         await createPromotion(formData);
-        toast({ title: "Created", description: "Promotion created successfully." });
+        toast({
+          title: "Created",
+          description: "Promotion created successfully.",
+        });
       } else if (promotion) {
         await updatePromotion(promotion.id, formData);
-        toast({ title: "Updated", description: "Promotion updated successfully." });
+        toast({
+          title: "Updated",
+          description: "Promotion updated successfully.",
+        });
       }
       onSubmit(); // Gọi hàm reload lại danh sách trong PromotionPage
       onClose();
@@ -160,8 +173,8 @@ const PromotionFormModal = ({
                 onChange={handleChange}
                 className="w-full border border-border rounded-md p-2"
               >
-                <option value="percentage">Percentage</option>
-                <option value="fixed">Fixed Amount</option>
+                <option value="PERCENTAGE">Percentage</option>
+                <option value="FIXED_AMOUNT">Fixed Amount</option>
               </select>
             </div>
             <div>

@@ -8,11 +8,11 @@ import {
   ChevronUp,
   Check,
 } from "lucide-react";
-import { getPromotionsByCode } from "@/api/promotion.api";
+import { validatePromotion } from "@/api/promotion.api";
 import { Promotion } from "@/types/type";
 
 interface PaymentConfirmParams {
-  paymentMethod: 'cash' | 'bank_transfer';
+  paymentMethod: "cash" | "bank_transfer";
   finalAmount: number;
   discountCode?: string;
   promotion?: Promotion;
@@ -21,7 +21,8 @@ interface PaymentConfirmParams {
 interface PaymentModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onConfirm: (params: PaymentConfirmParams) => void; 
+  onConfirm: (params: PaymentConfirmParams) => void;
+  onChangeCustomer?: () => void;
   orderNumber: number;
   tableNumber: number;
   items: Array<{
@@ -32,30 +33,47 @@ interface PaymentModalProps {
   }>;
   totalAmount: number;
   isProcessing?: boolean;
+  customerInfo?: {
+    userId: number;
+    name: string;
+    phone: string;
+  } | null;
 }
 
 export const PaymentMethodModal: React.FC<PaymentModalProps> = ({
   isOpen,
   onClose,
   onConfirm,
+  onChangeCustomer,
   orderNumber,
   tableNumber,
   items,
   totalAmount,
+  customerInfo,
   isProcessing = false,
 }) => {
   const [discountCode, setDiscountCode] = useState("");
-  const [paymentMethod, setPaymentMethod] = useState<"cash" | "bank_transfer">("cash");
+  const [paymentMethod, setPaymentMethod] = useState<"cash" | "bank_transfer">(
+    "cash"
+  );
   const [showPaymentMethods, setShowPaymentMethods] = useState(false);
   const [isDiscountApplied, setIsDiscountApplied] = useState(false);
   const [discountMessage, setDiscountMessage] = useState("");
-  const [appliedPromotion, setAppliedPromotion] = useState<Promotion | null>(null);
+  const [appliedPromotion, setAppliedPromotion] = useState<Promotion | null>(
+    null
+  );
   const [finalAmount, setFinalAmount] = useState(totalAmount);
   const [isCheckingDiscount, setIsCheckingDiscount] = useState(false);
 
-  // Fix: Cập nhật finalAmount khi totalAmount thay đổi
+  // **** THAY ĐỔI 1: CẬP NHẬT LOGIC RESET ****
+  // Cập nhật finalAmount VÀ reset mã giảm giá khi totalAmount thay đổi
   useEffect(() => {
     setFinalAmount(totalAmount);
+    // Reset trạng thái giảm giá nếu tổng tiền thay đổi
+    setIsDiscountApplied(false);
+    setAppliedPromotion(null);
+    setDiscountMessage("");
+    setDiscountCode(""); // <-- Reset luôn cả ô input
   }, [totalAmount]);
 
   const handleApplyDiscount = async () => {
@@ -68,72 +86,30 @@ export const PaymentMethodModal: React.FC<PaymentModalProps> = ({
     setDiscountMessage("Đang kiểm tra mã giảm giá...");
 
     try {
-      const promotions = await getPromotionsByCode(discountCode);
+      //
+      // **** THAY ĐỔI 2: TRUYỀN `userId` VÀO API ****
+      //
+      const promotion = await validatePromotion(
+        discountCode,
+        totalAmount,
+        customerInfo?.userId // <-- Gửi userId (hoặc null) lên backend
+      );
+      //
+      // **** HẾT THAY ĐỔI ****
+      //
 
-      if (promotions.length === 0) {
-        setDiscountMessage("❌ Mã giảm giá không tồn tại");
-        setIsDiscountApplied(false);
-        setAppliedPromotion(null);
-        setFinalAmount(totalAmount);
-        return;
-      }
+      // NẾU ĐẾN ĐƯỢC ĐÂY, CÓ NGHĨA LÀ MÃ HỢP LỆ!
+      // Backend đã làm hết việc kiểm tra (hết hạn, min spend, và cả userId)
 
-      const promotion = promotions[0];
-      const now = new Date();
-      const startDate = new Date(promotion.startDate);
-      const endDate = new Date(promotion.endDate);
-
-      // Kiểm tra các điều kiện
-      if (!promotion.activated) {
-        setDiscountMessage("❌ Mã giảm giá không khả dụng");
-        setIsDiscountApplied(false);
-        setAppliedPromotion(null);
-        setFinalAmount(totalAmount);
-        return;
-      }
-
-      if (now < startDate) {
-        setDiscountMessage("❌ Mã giảm giá chưa có hiệu lực");
-        setIsDiscountApplied(false);
-        setAppliedPromotion(null);
-        setFinalAmount(totalAmount);
-        return;
-      }
-
-      if (now > endDate) {
-        setDiscountMessage("❌ Mã giảm giá đã hết hạn");
-        setIsDiscountApplied(false);
-        setAppliedPromotion(null);
-        setFinalAmount(totalAmount);
-        return;
-      }
-
-      if (promotion.usageLimit <= 0) {
-        setDiscountMessage("❌ Mã giảm giá đã hết số lần sử dụng");
-        setIsDiscountApplied(false);
-        setAppliedPromotion(null);
-        setFinalAmount(totalAmount);
-        return;
-      }
-
-      if (totalAmount < promotion.minSpend) {
-        setDiscountMessage(
-          `❌ Đơn hàng tối thiểu ${promotion.minSpend.toLocaleString()}đ để áp dụng mã giảm giá`
-        );
-        setIsDiscountApplied(false);
-        setAppliedPromotion(null);
-        setFinalAmount(totalAmount);
-        return;
-      }
-
-      // Tính toán số tiền giảm giá
+      // CHỈ CẦN TÍNH TOÁN TIỀN
       let discountAmount = 0;
       let newFinalAmount = totalAmount;
 
-      if (promotion.promotionType === "percentage") {
+      if (promotion.promotionType === "PERCENTAGE") {
         discountAmount = totalAmount * (promotion.value / 100);
         newFinalAmount = totalAmount - discountAmount;
       } else {
+        // 'fixed'
         discountAmount = promotion.value;
         newFinalAmount = totalAmount - discountAmount;
       }
@@ -143,6 +119,7 @@ export const PaymentMethodModal: React.FC<PaymentModalProps> = ({
         newFinalAmount = 0;
       }
 
+      // Set trạng thái thành công
       setAppliedPromotion(promotion);
       setIsDiscountApplied(true);
       setFinalAmount(newFinalAmount);
@@ -150,12 +127,24 @@ export const PaymentMethodModal: React.FC<PaymentModalProps> = ({
         `✅ Áp dụng mã giảm giá thành công! Giảm ${discountAmount.toLocaleString()}đ`
       );
     } catch (error: any) {
-      if (error.response?.status === 404) {
-        setDiscountMessage("❌ Mã giảm giá không tồn tại");
-      } else {
-        setDiscountMessage("❌ Có lỗi xảy ra khi kiểm tra mã giảm giá");
-        console.error("Error checking promotion:", error);
+      // === KHỐI CATCH XỬ LÝ MỌI LỖI ===
+      let errorMessage = "❌ Có lỗi xảy ra khi kiểm tra mã giảm giá";
+
+      // Lấy thông báo lỗi cụ thể từ backend
+      if (
+        error.response &&
+        error.response.data &&
+        error.response.data.message
+      ) {
+        errorMessage = `❌ ${error.response.data.message}`;
       }
+      // Bạn có thể giữ lại fallback 404 cho chắc
+      else if (error.response?.status === 404) {
+        errorMessage = "❌ Mã giảm giá không tồn tại";
+      }
+
+      // Set trạng thái thất bại
+      setDiscountMessage(errorMessage);
       setIsDiscountApplied(false);
       setAppliedPromotion(null);
       setFinalAmount(totalAmount);
@@ -183,9 +172,9 @@ export const PaymentMethodModal: React.FC<PaymentModalProps> = ({
       paymentMethod,
       finalAmount,
       discountCode: isDiscountApplied ? discountCode : undefined,
-      promotion: isDiscountApplied ? appliedPromotion || undefined : undefined
+      promotion: isDiscountApplied ? appliedPromotion || undefined : undefined,
     };
-    
+
     onConfirm(params);
   };
 
@@ -206,6 +195,24 @@ export const PaymentMethodModal: React.FC<PaymentModalProps> = ({
             <X className="h-5 w-5" />
           </button>
         </div>
+        {customerInfo && (
+          <div className="p-4 bg-blue-50 border-b">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-600">Khách hàng</p>
+                <p className="font-medium">{customerInfo.name}</p>
+                <p className="text-sm text-gray-500">{customerInfo.phone}</p>
+              </div>
+              <button
+                onClick={onChangeCustomer}
+                disabled={isProcessing}
+                className="text-sm text-blue-600 hover:text-blue-700 disabled:opacity-50"
+              >
+                Đổi khách hàng
+              </button>
+            </div>
+          </div>
+        )}
 
         <div className="p-4">
           {/* Table Info */}
@@ -303,13 +310,13 @@ export const PaymentMethodModal: React.FC<PaymentModalProps> = ({
                 {finalAmount.toLocaleString()} đ
               </p>
             </div>
-            
+
             {isDiscountApplied && appliedPromotion && (
               <div className="mt-3 pt-3 border-t border-gray-200">
                 <div className="flex justify-between items-center text-sm text-green-600">
                   <span>Giảm giá:</span>
                   <span>
-                    {appliedPromotion.promotionType === "percentage"
+                    {appliedPromotion.promotionType === "PERCENTAGE"
                       ? `${appliedPromotion.value}%`
                       : `${appliedPromotion.value.toLocaleString()}đ`}
                   </span>

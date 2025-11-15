@@ -1,12 +1,22 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useCart } from "@/hooks/useCart";
-import { createPaymentLink, processCashPayment } from "@/api/payment.api";
+import {
+  createPaymentLink,
+  processCashPayment,
+  PaymentRequestDTO,
+  CashPaymentRequestDTO,
+} from "@/api/payment.api";
 import {
   getActiveOrdersByTable,
   createOrder,
   addItemsToOrder,
 } from "@/api/order.api";
+import {
+  findOrCreateCustomer,
+  linkCustomerToOrder,
+  getOrderById,
+} from "@/api/promotion.api";
 import {
   ChevronLeft,
   MoreVertical,
@@ -22,6 +32,7 @@ import { NoteModal } from "@/components/NoteModal";
 import { BillPreviewModal } from "@/components/BillPreviewModal";
 import { CashPaymentModal } from "@/components/CashPaymentModal";
 import { PaymentMethodModal } from "@/components/PaymentMethodModal";
+import { CustomerInfoModal } from "@/components/CustomerInfoModal";
 
 type LocalCartItem = {
   menuItemId: number;
@@ -65,6 +76,8 @@ const LiveOrderPage: React.FC = () => {
   const [showPaymentModal, setShowPaymentModal] = useState<boolean>(false);
   const [showCashPaymentModal, setShowCashPaymentModal] =
     useState<boolean>(false);
+  const [showCustomerInfoModal, setShowCustomerInfoModal] =
+    useState<boolean>(false);
   const [showCallStaffModal, setShowCallStaffModal] = useState<boolean>(false);
   const [editingNoteItem, setEditingNoteItem] = useState<{
     menuItemId: number;
@@ -76,8 +89,9 @@ const LiveOrderPage: React.FC = () => {
   const [activeOrderId, setActiveOrderId] = useState<number | null>(null);
   const [localCarts, setLocalCarts] = useState<LocalCartsState>({});
 
-  // Thêm state để lưu số tiền sau giảm giá
+  // Payment context
   const [currentPaymentAmount, setCurrentPaymentAmount] = useState<number>(0);
+  const [currentPromotionCode, setCurrentPromotionCode] = useState<string>("");
 
   const hasProcessedCartRef = useRef(false);
 
@@ -314,13 +328,15 @@ const LiveOrderPage: React.FC = () => {
     setShowBillPreview(true);
   };
 
-  const handleRequestPayment = () => {
+  // ========== BƯỚC 1: User bấm THANH TOÁN ==========
+  const handleRequestPayment = async () => {
     if (!activeOrderId) {
       setError("Vui lòng chọn order để thanh toán.");
       setShowError(true);
       return;
     }
 
+    // Kiểm tra món chưa gửi
     const currentLocalCart = localCarts[activeOrderId] || [];
     if (currentLocalCart.length > 0) {
       setError("Vui lòng gửi thông báo món ăn trước khi thanh toán.");
@@ -334,9 +350,65 @@ const LiveOrderPage: React.FC = () => {
       return;
     }
 
+    // Gọi API: getOrderById để kiểm tra customerUserId
+    try {
+      console.log("🔍 Kiểm tra thông tin khách hàng...");
+      const orderDetail = await getOrderById(activeOrderId);
+
+      if (orderDetail.customerUserId) {
+        // Đã có customer → Mở PaymentMethodModal luôn
+        console.log("✅ Order đã có customer, mở PaymentMethodModal");
+        setShowPaymentModal(true);
+      } else {
+        // Chưa có customer → Mở CustomerInfoModal
+        console.log("⚠️ Order chưa có customer, mở CustomerInfoModal");
+        setShowCustomerInfoModal(true);
+      }
+    } catch (err) {
+      console.error("Lỗi khi kiểm tra thông tin order:", err);
+      setError("Không thể kiểm tra thông tin order. Vui lòng thử lại.");
+      setShowError(true);
+    }
+  };
+
+  // ========== BƯỚC 2: Xử lý CustomerInfoModal ==========
+  const handleCustomerInfoSubmit = async (phone: string, fullName: string) => {
+    if (!activeOrderId) return;
+
+    try {
+      console.log("📞 Đang tìm/tạo customer với SĐT:", phone);
+
+      // Gọi API: findOrCreateCustomer
+      const customer = await findOrCreateCustomer(phone, fullName);
+      console.log("✅ Customer:", customer);
+
+      // Gọi API: linkCustomerToOrder
+      console.log("🔗 Đang link customer vào order...");
+      await linkCustomerToOrder(activeOrderId, customer.userId);
+      console.log("✅ Đã link customer vào order");
+
+      // Reload order data
+      await loadOrders(tableId!);
+
+      // Đóng CustomerInfoModal, mở PaymentMethodModal
+      setShowCustomerInfoModal(false);
+      setShowPaymentModal(true);
+    } catch (err: any) {
+      console.error("Lỗi khi xử lý thông tin khách hàng:", err);
+      throw new Error(
+        err.response?.data?.message || "Không thể lưu thông tin khách hàng"
+      );
+    }
+  };
+
+  const handleCustomerInfoSkip = () => {
+    // User chọn bỏ qua → Mở PaymentMethodModal luôn (không tích điểm)
+    console.log("⏭️ User bỏ qua nhập thông tin khách hàng");
+    setShowCustomerInfoModal(false);
     setShowPaymentModal(true);
   };
 
+  // ========== BƯỚC 3: Xử lý PaymentMethodModal ==========
   const processPayment = async (params: {
     paymentMethod: "cash" | "bank_transfer";
     discountCode?: string;
@@ -347,16 +419,22 @@ const LiveOrderPage: React.FC = () => {
 
     if (!activeOrderId) return;
 
-    // Sử dụng finalAmount từ params thay vì confirmedTotal
-    const amountToPay = params.finalAmount;
-    setCurrentPaymentAmount(amountToPay);
+    // Lưu payment context
+    setCurrentPaymentAmount(params.finalAmount);
+    setCurrentPromotionCode(params.discountCode || "");
 
     if (params.paymentMethod === "cash") {
-      console.log("💵 Processing cash payment với số tiền:", amountToPay);
+      console.log(
+        "💵 Processing cash payment với số tiền:",
+        params.finalAmount
+      );
       setShowPaymentModal(false);
       setShowCashPaymentModal(true);
     } else if (params.paymentMethod === "bank_transfer") {
-      console.log("🏦 Processing bank transfer với số tiền:", amountToPay);
+      console.log(
+        "🏦 Processing bank transfer với số tiền:",
+        params.finalAmount
+      );
       setIsProcessingPayment(true);
       setError(null);
 
@@ -365,24 +443,13 @@ const LiveOrderPage: React.FC = () => {
         const returnUrl = `${currentUrl}/payment-success?orderId=${activeOrderId}&tableId=${tableId}`;
         const cancelUrl = `${currentUrl}/live-order?tableId=${tableId}`;
 
-        console.log("💰 Số tiền thanh toán ngân hàng:", {
-          original: confirmedTotal,
-          final: params.finalAmount,
-          used: amountToPay,
-        });
-
-        // Tạo object payment data
-        const paymentData: any = {
+        const paymentData: PaymentRequestDTO = {
           orderId: activeOrderId,
           returnUrl: returnUrl,
           cancelUrl: cancelUrl,
+          amount: params.finalAmount,
+          promotionCode: params.discountCode,
         };
-
-        // Thêm thông tin giảm giá nếu có
-        if (params.discountCode) {
-          paymentData.promotionCode = params.discountCode;
-          console.log("🎫 Gửi mã giảm giá:", params.discountCode);
-        }
 
         console.log("📤 Gửi dữ liệu thanh toán:", paymentData);
 
@@ -405,6 +472,7 @@ const LiveOrderPage: React.FC = () => {
     }
   };
 
+  // ========== BƯỚC 4: Xử lý CashPaymentModal ==========
   const processCashPaymentHandler = async () => {
     if (!activeOrderId) return;
 
@@ -412,8 +480,15 @@ const LiveOrderPage: React.FC = () => {
     setError(null);
 
     try {
-      // Gọi API thanh toán tiền mặt với số tiền sau giảm giá
-      await processCashPayment(activeOrderId, currentPaymentAmount);
+      const cashPaymentData: CashPaymentRequestDTO = {
+        orderId: activeOrderId,
+        amountReceived: currentPaymentAmount,
+        promotionCode: currentPromotionCode || undefined,
+      };
+
+      console.log("💵 Gửi dữ liệu cash payment:", cashPaymentData);
+
+      await processCashPayment(cashPaymentData);
 
       console.log("✅ Cash payment successful");
 
@@ -615,6 +690,13 @@ const LiveOrderPage: React.FC = () => {
     );
   }, [displayItems]);
 
+  const handleChangeCustomer = () => {
+    // Đóng modal chọn thanh toán
+    setShowPaymentModal(false);
+    // Mở lại modal nhập thông tin khách hàng
+    setShowCustomerInfoModal(true);
+  };
+
   const handleNavigateToMenu = () => {
     if (!tableId || !activeOrderId || !storageKeys) return;
 
@@ -803,10 +885,21 @@ const LiveOrderPage: React.FC = () => {
         totalAmount={confirmedTotal}
       />
 
+      {/* Customer Info Modal */}
+      <CustomerInfoModal
+        isOpen={showCustomerInfoModal}
+        onClose={() => setShowCustomerInfoModal(false)}
+        onSubmit={handleCustomerInfoSubmit}
+        onSkip={handleCustomerInfoSkip}
+        isProcessing={isProcessingPayment}
+      />
+
+      {/* Payment Method Modal */}
       <PaymentMethodModal
         isOpen={showPaymentModal}
         onClose={() => setShowPaymentModal(false)}
-        onConfirm={processPayment} // Đảm bảo truyền hàm đã sửa
+        onConfirm={processPayment}
+        onChangeCustomer={handleChangeCustomer}
         isProcessing={isProcessingPayment}
         orderNumber={currentOrderIndex}
         tableNumber={tableId || 0}
@@ -817,6 +910,20 @@ const LiveOrderPage: React.FC = () => {
           note: item.note,
         }))}
         totalAmount={confirmedTotal}
+        customerInfo={
+          activeOrderId
+            ? (() => {
+                const order = orders.find((o) => o.id === activeOrderId);
+                return order?.customerUserId
+                  ? {
+                      userId: order.customerUserId,
+                      name: order.customerName || "Khách hàng",
+                      phone: order.customerPhone || "",
+                    }
+                  : null;
+              })()
+            : null
+        }
       />
 
       {/* Cash Payment Modal */}
@@ -824,7 +931,7 @@ const LiveOrderPage: React.FC = () => {
         isOpen={showCashPaymentModal}
         onClose={() => setShowCashPaymentModal(false)}
         onConfirm={processCashPaymentHandler}
-        totalAmount={currentPaymentAmount} // Sử dụng số tiền sau giảm giá
+        totalAmount={currentPaymentAmount}
         items={billItems}
         isProcessing={isProcessingPayment}
       />
