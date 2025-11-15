@@ -199,13 +199,12 @@ export interface StaffResponse {
   fullName: string;
 }
 
-
 export interface Promotion {
   id: number;
   name: string;
   code: string;
   description: string;
-  promotionType: "percentage" | "fixed"; 
+  promotionType: "PERCENTAGE" | "FIXED_AMOUNT";
   minSpend: number;
   startDate: string;
   endDate: string;
