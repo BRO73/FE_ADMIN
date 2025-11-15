@@ -376,17 +376,12 @@ const LiveOrderPage: React.FC = () => {
           orderId: activeOrderId,
           returnUrl: returnUrl,
           cancelUrl: cancelUrl,
-          amount: amountToPay, // Sử dụng số tiền sau giảm giá
         };
 
         // Thêm thông tin giảm giá nếu có
         if (params.discountCode) {
-          paymentData.discountCode = params.discountCode;
-          console.log("🎫 Mã giảm giá:", params.discountCode);
-        }
-        if (params.promotion?.id) {
-          paymentData.promotionId = params.promotion.id;
-          console.log("🎯 Promotion ID:", params.promotion.id);
+          paymentData.promotionCode = params.discountCode;
+          console.log("🎫 Gửi mã giảm giá:", params.discountCode);
         }
 
         console.log("📤 Gửi dữ liệu thanh toán:", paymentData);
