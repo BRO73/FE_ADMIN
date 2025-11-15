@@ -5,7 +5,16 @@ import {
   updatePromotion,
   deletePromotion,
 } from "@/api/promotion.api";
-import { Plus, Edit, Trash2, Search, Calendar, Percent, Users, Clock } from "lucide-react";
+import {
+  Plus,
+  Edit,
+  Trash2,
+  Search,
+  Calendar,
+  Percent,
+  Users,
+  Clock,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card } from "@/components/ui/card";
@@ -18,7 +27,7 @@ interface Promotion {
   id: number;
   title: string;
   description: string;
-  discountType: "percentage" | "fixed";
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
   discountValue: number;
   startDate: string;
   endDate: string;
@@ -38,7 +47,9 @@ const PromotionPage = () => {
   const [isFormModalOpen, setIsFormModalOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [formMode, setFormMode] = useState<"add" | "edit">("add");
-  const [selectedPromotion, setSelectedPromotion] = useState<Promotion | undefined>();
+  const [selectedPromotion, setSelectedPromotion] = useState<
+    Promotion | undefined
+  >();
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ===============================
@@ -116,10 +127,16 @@ const PromotionPage = () => {
     try {
       if (formMode === "add") {
         await createPromotion(formData);
-        toast({ title: "Success", description: "Promotion created successfully" });
+        toast({
+          title: "Success",
+          description: "Promotion created successfully",
+        });
       } else if (formMode === "edit" && selectedPromotion) {
         await updatePromotion(selectedPromotion.id, formData);
-        toast({ title: "Success", description: "Promotion updated successfully" });
+        toast({
+          title: "Success",
+          description: "Promotion updated successfully",
+        });
       }
       setIsFormModalOpen(false);
       await fetchPromotions();
@@ -166,7 +183,8 @@ const PromotionPage = () => {
       promotion.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       promotion.description.toLowerCase().includes(searchTerm.toLowerCase()) ||
       promotion.code?.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesStatus = selectedStatus === "all" || promotion.status === selectedStatus;
+    const matchesStatus =
+      selectedStatus === "all" || promotion.status === selectedStatus;
     return matchesSearch && matchesStatus;
   });
 
@@ -186,14 +204,14 @@ const PromotionPage = () => {
   };
 
   const formatDiscount = (type: Promotion["discountType"], value: number) => {
-    return type === "percentage" ? `${value}%` : `$${value}`;
+    return type === "PERCENTAGE" ? `${value}%` : `$${value}`;
   };
 
   const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      month: 'short',
-      day: 'numeric',
-      year: 'numeric'
+    return new Date(dateString).toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric",
+      year: "numeric",
     });
   };
 
@@ -210,12 +228,17 @@ const PromotionPage = () => {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-3xl font-bold text-foreground">Promotion Management</h1>
+          <h1 className="text-3xl font-bold text-foreground">
+            Promotion Management
+          </h1>
           <p className="text-muted-foreground mt-1">
             Create and manage promotional campaigns and discount codes.
           </p>
         </div>
-        <Button onClick={handleAddPromotion} className="bg-blue-600 hover:bg-blue-700 text-white">
+        <Button
+          onClick={handleAddPromotion}
+          className="bg-blue-600 hover:bg-blue-700 text-white"
+        >
           <Plus className="w-4 h-4 mr-2" />
           Create Promotion
         </Button>
@@ -226,8 +249,12 @@ const PromotionPage = () => {
         <Card className="p-6 border-l-4 border-l-blue-400 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Total Promotions</p>
-              <p className="text-2xl font-bold text-foreground">{promotions.length}</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Total Promotions
+              </p>
+              <p className="text-2xl font-bold text-foreground">
+                {promotions.length}
+              </p>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
               <Percent className="w-6 h-6 text-blue-600" />
@@ -238,9 +265,11 @@ const PromotionPage = () => {
         <Card className="p-6 border-l-4 border-l-green-400 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Active</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Active
+              </p>
               <p className="text-2xl font-bold text-foreground">
-                {promotions.filter(p => p.status === 'active').length}
+                {promotions.filter((p) => p.status === "active").length}
               </p>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
@@ -252,9 +281,11 @@ const PromotionPage = () => {
         <Card className="p-6 border-l-4 border-l-yellow-400 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Scheduled</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Scheduled
+              </p>
               <p className="text-2xl font-bold text-foreground">
-                {promotions.filter(p => p.status === 'scheduled').length}
+                {promotions.filter((p) => p.status === "scheduled").length}
               </p>
             </div>
             <div className="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
@@ -266,9 +297,11 @@ const PromotionPage = () => {
         <Card className="p-6 border-l-4 border-l-purple-400 hover:shadow-lg transition-shadow">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-muted-foreground">Expired</p>
+              <p className="text-sm font-medium text-muted-foreground">
+                Expired
+              </p>
               <p className="text-2xl font-bold text-foreground">
-                {promotions.filter(p => p.status === 'expired').length}
+                {promotions.filter((p) => p.status === "expired").length}
               </p>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
@@ -310,20 +343,34 @@ const PromotionPage = () => {
       <Card className="p-6 hover:shadow-lg transition-shadow">
         <div className="flex items-center justify-between mb-6">
           <h3 className="text-xl font-semibold text-foreground">
-            {loading ? "Loading promotions..." : `All Promotions (${filteredPromotions.length})`}
+            {loading
+              ? "Loading promotions..."
+              : `All Promotions (${filteredPromotions.length})`}
           </h3>
         </div>
-        
+
         <div className="overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-border bg-gray-50/50">
-                <th className="text-center py-4 px-4 font-semibold text-gray-700">Promotion</th>
-                <th className="text-center py-4 px-4 font-semibold text-gray-700">Discount</th>
-                <th className="text-center py-4 px-4 font-semibold text-gray-700">Duration</th>
-                <th className="text-center py-4 px-4 font-semibold text-gray-700">Usage</th>
-                <th className="text-center py-4 px-4 font-semibold text-gray-700">Status</th>
-                <th className="text-center py-4 px-4 font-semibold text-gray-700">Actions</th>
+                <th className="text-center py-4 px-4 font-semibold text-gray-700">
+                  Promotion
+                </th>
+                <th className="text-center py-4 px-4 font-semibold text-gray-700">
+                  Discount
+                </th>
+                <th className="text-center py-4 px-4 font-semibold text-gray-700">
+                  Duration
+                </th>
+                <th className="text-center py-4 px-4 font-semibold text-gray-700">
+                  Usage
+                </th>
+                <th className="text-center py-4 px-4 font-semibold text-gray-700">
+                  Status
+                </th>
+                <th className="text-center py-4 px-4 font-semibold text-gray-700">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -331,18 +378,21 @@ const PromotionPage = () => {
                 <tr>
                   <td colSpan={6} className="text-center py-8">
                     <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 mx-auto mb-2"></div>
-                    <p className="text-muted-foreground">Loading promotions...</p>
+                    <p className="text-muted-foreground">
+                      Loading promotions...
+                    </p>
                   </td>
                 </tr>
               ) : filteredPromotions.length === 0 ? (
                 <tr>
                   <td colSpan={6} className="text-center py-12">
-                    <div className="text-muted-foreground text-lg mb-2">No promotions found</div>
+                    <div className="text-muted-foreground text-lg mb-2">
+                      No promotions found
+                    </div>
                     <p className="text-sm text-muted-foreground mb-4">
-                      {searchTerm || selectedStatus !== "all" 
-                        ? "Try adjusting your search or filters" 
-                        : "Create your first promotion to get started"
-                      }
+                      {searchTerm || selectedStatus !== "all"
+                        ? "Try adjusting your search or filters"
+                        : "Create your first promotion to get started"}
                     </p>
                     {!searchTerm && selectedStatus === "all" && (
                       <Button onClick={handleAddPromotion} size="sm">
@@ -354,23 +404,33 @@ const PromotionPage = () => {
                 </tr>
               ) : (
                 filteredPromotions.map((promotion) => (
-                  <tr key={promotion.id} className="border-b border-border hover:bg-gray-50/30 transition-colors">
+                  <tr
+                    key={promotion.id}
+                    className="border-b border-border hover:bg-gray-50/30 transition-colors"
+                  >
                     {/* Promotion Info */}
                     <td className="py-4 px-4">
-                        <div className="font-semibold text-foreground mb-1">{promotion.title}</div>
-                        <div className="text-sm text-muted-foreground mb-2">{promotion.description}</div>
-                        {promotion.code && (
-                          <div className="text-xs bg-blue-50 text-blue-700 font-mono px-2 py-1 rounded border border-blue-200 inline-block">
-                            {promotion.code}
-                          </div>
-                        )}
+                      <div className="font-semibold text-foreground mb-1">
+                        {promotion.title}
+                      </div>
+                      <div className="text-sm text-muted-foreground mb-2">
+                        {promotion.description}
+                      </div>
+                      {promotion.code && (
+                        <div className="text-xs bg-blue-50 text-blue-700 font-mono px-2 py-1 rounded border border-blue-200 inline-block">
+                          {promotion.code}
+                        </div>
+                      )}
                     </td>
 
                     {/* Discount */}
                     <td className="py-4 px-4 ">
                       <div className="flex flex-col items-center">
                         <div className="text-lg font-bold text-green-600">
-                          {formatDiscount(promotion.discountType, promotion.discountValue)}
+                          {formatDiscount(
+                            promotion.discountType,
+                            promotion.discountValue
+                          )}
                         </div>
                         <div className="text-xs text-muted-foreground capitalize">
                           {promotion.discountType}
@@ -397,14 +457,18 @@ const PromotionPage = () => {
                     <td className="py-4 px-4 text-center">
                       <div className="flex flex-col items-center space-y-2">
                         <div className="text-sm font-medium">
-                          {promotion.usageCount} {promotion.maxUsage ? `/ ${promotion.maxUsage}` : ''}
+                          {promotion.usageCount}{" "}
+                          {promotion.maxUsage ? `/ ${promotion.maxUsage}` : ""}
                         </div>
                         {promotion.maxUsage && (
                           <div className="w-20 bg-gray-200 rounded-full h-2">
-                            <div 
+                            <div
                               className="bg-blue-600 h-2 rounded-full transition-all duration-300"
-                              style={{ 
-                                width: `${getUsagePercentage(promotion.usageCount, promotion.maxUsage)}%` 
+                              style={{
+                                width: `${getUsagePercentage(
+                                  promotion.usageCount,
+                                  promotion.maxUsage
+                                )}%`,
                               }}
                             />
                           </div>
@@ -414,8 +478,10 @@ const PromotionPage = () => {
 
                     {/* Status */}
                     <td className="py-4 px-4 text-center">
-                      <Badge 
-                        className={`capitalize border ${getStatusColor(promotion.status)} font-medium`}
+                      <Badge
+                        className={`capitalize border ${getStatusColor(
+                          promotion.status
+                        )} font-medium`}
                       >
                         {promotion.status}
                       </Badge>
@@ -424,17 +490,17 @@ const PromotionPage = () => {
                     {/* Actions */}
                     <td className="py-4 px-4 text-center">
                       <div className="flex justify-center gap-2">
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleEditPromotion(promotion)}
                           className="border-blue-300 text-blue-700 hover:bg-blue-50 hover:border-blue-400"
                         >
                           <Edit className="w-4 h-4" />
                         </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleDeletePromotion(promotion)}
                           className="border-red-300 text-red-600 hover:bg-red-50 hover:border-red-400"
                         >

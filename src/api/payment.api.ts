@@ -1,15 +1,23 @@
 import api from "./axiosInstance";
 
-// Request DTO
+// ============ REQUEST DTOs ============
+
 export interface PaymentRequestDTO {
   orderId: number;
   returnUrl: string;
   cancelUrl: string;
-  amount: number; // Thêm thuộc tính amount
-  discountCode?: string; // Thêm nếu chưa có
-  promotionId?: number; // Thêm nếu chưa có
+  amount: number;
+  promotionCode?: string; // Mã giảm giá cho bank transfer
 }
-// Response DTO
+
+export interface CashPaymentRequestDTO {
+  orderId: number;
+  amountReceived: number;
+  promotionCode?: string; // Mã giảm giá cho cash payment
+}
+
+// ============ RESPONSE DTOs ============
+
 export interface PaymentResponseDTO {
   transactionCode: string;
   checkoutUrl: string;
@@ -17,10 +25,22 @@ export interface PaymentResponseDTO {
   orderId: number;
 }
 
+export interface CashPaymentResponseDTO {
+  transactionCode: string;
+  paymentStatus: string;
+  orderId: number;
+  amountReceived: number;
+  change?: number;
+}
+
+// ============ API FUNCTIONS ============
+
 /**
- * Tạo payment link cho order
- * @param request - Payment request với orderId, returnUrl, cancelUrl
- * @returns Payment response với paymentUrl
+ * Tạo payment link cho thanh toán chuyển khoản
+ * Backend sẽ validate và áp dụng promotion (nếu có promotionCode)
+ *
+ * @param request - Payment request với orderId, returnUrl, cancelUrl, amount, promotionCode (optional)
+ * @returns Payment response với checkoutUrl để redirect
  */
 export const createPaymentLink = async (
   request: PaymentRequestDTO
@@ -29,21 +49,22 @@ export const createPaymentLink = async (
     "/payments/create",
     request
   );
-
   return response.data;
 };
 
+/**
+ * Xử lý thanh toán tiền mặt
+ * Backend sẽ validate và áp dụng promotion (nếu có promotionCode)
+ *
+ * @param request - Cash payment request với orderId, amountReceived, promotionCode (optional)
+ * @returns Cash payment response với thông tin giao dịch
+ */
 export const processCashPayment = async (
-  orderId: number,
-  amountReceived?: number
-) => {
-  const payload: any = { orderId };
-
-  // Chỉ gửi amountReceived nếu có giá trị
-  if (amountReceived !== undefined && amountReceived !== null) {
-    payload.amountReceived = amountReceived;
-  }
-
-  const response = await api.post("/payments/cash", payload);
+  request: CashPaymentRequestDTO
+): Promise<CashPaymentResponseDTO> => {
+  const response = await api.post<CashPaymentResponseDTO>(
+    "/payments/cash",
+    request
+  );
   return response.data;
 };

@@ -22,7 +22,7 @@ export interface PromotionFormData {
   title: string;
   code?: string;
   description?: string;
-  discountType: "percentage" | "fixed";
+  discountType: "PERCENTAGE" | "FIXED_AMOUNT";
   discountValue: number;
   minSpend?: number;
   startDate: string;
@@ -36,7 +36,8 @@ const mapToPromotion = (res: PromotionResponse) => ({
   title: res.name,
   code: res.code,
   description: res.description || "",
-  discountType: res.promotionType === "PERCENTAGE" ? "percentage" : "fixed",
+  discountType:
+    res.promotionType === "PERCENTAGE" ? "PERCENTAGE" : "FIXED_AMOUNT",
   discountValue: res.value,
   minSpend: res.minSpend,
   startDate: res.startDate.split("T")[0],
@@ -57,7 +58,8 @@ const mapToApiPayload = (data: PromotionFormData) => ({
   name: data.title,
   code: data.code,
   description: data.description,
-  promotionType: data.discountType === "percentage" ? "percentage" : "fixed",
+  promotionType:
+    data.discountType === "PERCENTAGE" ? "PERCENTAGE" : "FIXED_AMOUNT",
   value: data.discountValue,
   minSpend: data.minSpend,
   startDate: `${data.startDate}T00:00:00`,
@@ -77,12 +79,21 @@ export const getPromotionById = async (id: number) => {
 };
 
 export const createPromotion = async (payload: PromotionFormData) => {
-  const { data } = await api.post<PromotionResponse>("/promotions", mapToApiPayload(payload));
+  const { data } = await api.post<PromotionResponse>(
+    "/promotions",
+    mapToApiPayload(payload)
+  );
   return mapToPromotion(data);
 };
 
-export const updatePromotion = async (id: number, payload: PromotionFormData) => {
-  const { data } = await api.put<PromotionResponse>(`/promotions/${id}`, mapToApiPayload(payload));
+export const updatePromotion = async (
+  id: number,
+  payload: PromotionFormData
+) => {
+  const { data } = await api.put<PromotionResponse>(
+    `/promotions/${id}`,
+    mapToApiPayload(payload)
+  );
   return mapToPromotion(data);
 };
 
@@ -96,41 +107,143 @@ export const getActivePromotions = async () => {
 };
 
 export const getPromotionsByType = async (type: string) => {
-  const { data } = await api.get<PromotionResponse[]>(`/promotions/type/${type}`);
+  const { data } = await api.get<PromotionResponse[]>(
+    `/promotions/type/${type}`
+  );
   return data.map(mapToPromotion);
 };
 
-export const getPromotionsByCode = async (code: string): Promise<Promotion[]> => {
+export const getPromotionsByCode = async (
+  code: string
+): Promise<Promotion[]> => {
   try {
     const { data } = await api.get(`/promotions/code/${code}`);
-    
-    console.log('API Response:', data); // Debug: xem cấu trúc dữ liệu thực tế
-    
-    // Nếu data là một object đơn lẻ, chuyển nó thành mảng
+
+    console.log("API Response:", data);
+
     let promotionsData = data;
     if (!Array.isArray(data)) {
       promotionsData = [data];
     }
-    
-    // Map dữ liệu từ API response sang interface Promotion của component
+
     return promotionsData.map((promotion: any) => ({
       id: promotion.id,
       name: promotion.name,
-      code: promotion.code || '',
-      description: promotion.description || '',
-      promotionType: promotion.promotionType.toLowerCase() as 'percentage' | 'fixed',
+      code: promotion.code || "",
+      description: promotion.description || "",
+      promotionType: promotion.promotionType() as "PERCENTAGE" | "FIXED_AMOUNT",
       value: promotion.value,
       minSpend: promotion.minSpend || 0,
       startDate: promotion.startDate,
       endDate: promotion.endDate,
       usageLimit: promotion.usageLimit || 0,
-      createdAt: promotion.createdAt || '',
-      updatedAt: promotion.updatedAt || '',
+      createdAt: promotion.createdAt || "",
+      updatedAt: promotion.updatedAt || "",
       deleted: promotion.deleted || false,
-      activated: promotion.activated || false
+      activated: promotion.activated || false,
     }));
   } catch (error) {
-    console.error('Error fetching promotion by code:', error);
+    console.error("Error fetching promotion by code:", error);
     throw error;
   }
+};
+
+// ✅ FIX: Gửi userId lên backend
+export const validatePromotion = async (
+  code: string,
+  totalAmount: number,
+  userId?: number
+): Promise<Promotion> => {
+  try {
+    // Tạo payload động: chỉ gửi userId nếu có
+    const payload: { code: string; totalAmount: number; userId?: number } = {
+      code: code,
+      totalAmount: totalAmount,
+    };
+
+    // ✅ CHỈ THÊM userId NẾU CÓ GIÁ TRỊ
+    if (userId !== undefined && userId !== null) {
+      payload.userId = userId;
+    }
+
+    console.log("📤 Sending validation request:", payload);
+
+    const { data } = await api.post(`/promotions/validate`, payload);
+
+    console.log("✅ API Response (Valid Promotion):", data);
+
+    return {
+      id: data.id,
+      name: data.name,
+      code: data.code || "",
+      description: data.description || "",
+      promotionType: data.promotionType as "PERCENTAGE" | "FIXED_AMOUNT",
+      value: data.value,
+      minSpend: data.minSpend || 0,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      usageLimit: data.usageLimit || 0,
+      createdAt: data.createdAt || "",
+      updatedAt: data.updatedAt || "",
+      deleted: data.deleted || false,
+      activated: data.activated || false,
+    };
+  } catch (error) {
+    console.error("❌ Error validating promotion:", error);
+    throw error;
+  }
+};
+
+interface CustomerResponse {
+  id: number;
+  userId: number;
+  fullName: string;
+  phoneNumber: string;
+  email?: string;
+}
+
+interface OrderResponseDetail {
+  id: number;
+  orderNumber: string;
+  status: string;
+  totalAmount: number;
+  customerUserId?: number;
+  items: Array<{
+    name: string;
+    quantity: number;
+    price: number;
+    note?: string;
+  }>;
+}
+
+export const getOrderById = async (id: number) => {
+  const { data } = await api.get<OrderResponseDetail>(`/orders/${id}`);
+  return data;
+};
+
+export const findOrCreateCustomer = async (
+  phone: string,
+  fullName: string
+): Promise<CustomerResponse> => {
+  const { data } = await api.post<CustomerResponse>(
+    "/customers/find-or-create",
+    {
+      phone: phone,
+      fullName: fullName,
+    }
+  );
+  return data;
+};
+
+export const linkCustomerToOrder = async (
+  orderId: number,
+  userId: number
+): Promise<OrderResponseDetail> => {
+  const { data } = await api.put<OrderResponseDetail>(
+    `/orders/${orderId}/link-customer`,
+    {
+      userId: userId,
+    }
+  );
+  return data;
 };
