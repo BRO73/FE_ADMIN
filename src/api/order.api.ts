@@ -1,5 +1,5 @@
 import api from "./axiosInstance";
-import { OrderRequest, OrderResponse } from "@/types/index";
+import { OrderRequest, OrderResponse } from "@/types/type";
 
 /**
  * Tạo order mới (thường là khi check-out giỏ hàng)
