@@ -29,7 +29,7 @@ import {
 import type {
   StaffResponse,
   UpdateStaffRequest,
-  StaffRoleBE,
+  StaffRoleDb,
 } from "@/api/staff.api";
 import {
   Dialog,
@@ -81,7 +81,7 @@ type AccountRow = {
 type SelectedUA = {
   id: number;
   username: string;
-  role: string; // DB role name: "WAITSTAFF" / "KITCHEN_STAFF" / "CASHIER" / "ADMIN"
+  role: StaffRoleDb; // DB role name: "WAITSTAFF" / "KITCHEN_STAFF" / "CASHIER" / "ADMIN"
   passwordText?: string;
 };
 type UAPayload = {
@@ -96,28 +96,30 @@ type UAInitial = SelectedUA;
  * ========================= */
 
 /** BE -> UI (chỉ map về 4 role) */
-const normalizeRoleToUi = (beRole?: string): UiRole => {
+const normalizeDbRole = (beRole?: string): StaffRoleDb => {
   const raw = (beRole ?? "").trim().toUpperCase();
   const noPrefix = raw.startsWith("ROLE_") ? raw.slice(5) : raw;
+
   switch (noPrefix) {
     case "ADMIN":
-      return "admin";
-    case "CHEF":
+      return "ADMIN";
     case "KITCHEN_STAFF":
-      return "chef";
+    case "CHEF":
+      return "KITCHEN_STAFF";
     case "CASHIER":
-      return "cashier";
-    case "WAITER":
+      return "CASHIER";
     case "WAITSTAFF":
+      return "WAITSTAFF";
+    case "WAITER":
     default:
-      return "waiter";
+      return "WAITSTAFF";
   }
 };
 
 /** UI -> BE (Staff service – enum thuần, không có ROLE_) */
-const UI_TO_BE_STAFF: Record<UiRole, StaffRoleBE> = {
-  waiter: "WAITER",
-  chef: "CHEF",
+const UI_ROLE_TO_DB: Record<UiRole, StaffRoleDb> = {
+  waiter: "WAITSTAFF",
+  chef: "KITCHEN_STAFF",
   cashier: "CASHIER",
   admin: "ADMIN",
 };
@@ -130,16 +132,8 @@ const ROLE_LABEL: Record<UiRole, string> = {
 };
 
 /** BE (string bất kỳ) -> UI role cho bảng Accounts (fallback = waiter) */
-const BE_TO_UI_ACCOUNT: Record<string, UiAccountRole> = {
-  ROLE_WAITER: "waiter",
-  ROLE_WAITSTAFF: "waiter",
-  ROLE_CHEF: "chef",
-  ROLE_KITCHEN_STAFF: "chef",
-  ROLE_CASHIER: "cashier",
-  ROLE_ADMIN: "admin",
-  WAITER: "waiter",
+const DB_ROLE_TO_UI: Record<StaffRoleDb, UiRole> = {
   WAITSTAFF: "waiter",
-  CHEF: "chef",
   KITCHEN_STAFF: "chef",
   CASHIER: "cashier",
   ADMIN: "admin",
@@ -180,17 +174,32 @@ const StaffManagementPage = () => {
 
   // Map Staff BE -> UI
   const staffList: AdminStaffRow[] = useMemo(() => {
-    const raw = Array.isArray(staffData) ? staffData : [];
-    return raw.map((s: StaffResponse) => ({
+  const raw = Array.isArray(staffData) ? staffData : [];
+
+  return raw.map((s) => {
+    let dbRole: StaffRoleDb;
+
+    // Nếu staff có user -> lấy role từ userRole
+    if (s.userId && Array.isArray((s as any).roles) && (s as any).roles.length > 0) {
+      dbRole = normalizeDbRole((s as any).roles[0]);
+    } else {
+      // Staff chưa có account → dùng role trong Staff table
+      dbRole = normalizeDbRole(s.roles && s.roles.length > 0 ? s.roles[0] : "WAITSTAFF");
+    }
+
+    return {
       id: s.id,
-      name: s.fullName,
-      role: normalizeRoleToUi(s.role),
-      email: s.email,
-      phone: s.phoneNumber,
-      joinDate: s.createdAt ? s.createdAt.slice(0, 10) : "",
+      name: s.name ?? s.name ?? "",
+      role: DB_ROLE_TO_UI[dbRole],
+      email: s.email ?? "",
+      phone: s.phoneNumber ?? "",
+      joinDate: s.createdAt?.slice(0, 10) ?? "",
       userId: s.userId ?? null,
-    }));
-  }, [staffData]);
+    };
+  });
+}, [staffData]);
+
+
 
   const filteredStaff = useMemo(() => {
     const q = searchTerm.trim().toLowerCase();
@@ -206,8 +215,12 @@ const StaffManagementPage = () => {
   }, [searchTerm, staffList]);
 
   // ===== Duplicate helpers (client-side) =====
-  const normEmail = (s: string) => s.trim().toLowerCase();
-  const normPhone = (s: string) => s.replace(/[^\d]/g, "");
+  const normEmail = (s?: string | null) =>
+    typeof s === "string" ? s.trim().toLowerCase() : "";
+
+  const normPhone = (s?: string | null) =>
+    typeof s === "string" ? s.replace(/[^\d]/g, "") : "";
+
 
   const isDuplicateEmail = (email: string, excludeId?: number) => {
     const target = normEmail(email);
@@ -242,14 +255,18 @@ const StaffManagementPage = () => {
 
   const userAccounts = useMemo<AccountRow[]>(() => {
     const rows = Array.isArray(accountsRes) ? accountsRes : [];
-    return rows.map((u) => ({
-      id: u.id,
-      name: u.username,
-      role: BE_TO_UI_ACCOUNT[(u.role ?? "").toUpperCase()] ?? "waiter",
-      createdAt: (u.createdAt || "").slice(0, 10),
-      passwordText: u.passwordText ?? "",
-    }));
+    return rows.map((u) => {
+      const dbRole = normalizeDbRole(u.role);
+      return {
+        id: u.id,
+        name: u.username,
+        role: DB_ROLE_TO_UI[dbRole],
+        createdAt: (u.createdAt || "").slice(0, 10),
+        passwordText: u.passwordText ?? "",
+      };
+    });
   }, [accountsRes]);
+
 
   const filteredUserAccounts = useMemo(() => {
     const q = userSearchTerm.trim().toLowerCase();
@@ -265,7 +282,7 @@ const StaffManagementPage = () => {
   const { mutateAsync: updateUserAccountMut } = useMutation({
     mutationFn: (p: {
       id: number;
-      body: { username: string; password?: string; role?: string };
+      body: { username: string; password?: string; role?: StaffRoleDb };
     }) => updateUserAccount(p.id, p.body),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["user-accounts"] });
@@ -311,14 +328,15 @@ const StaffManagementPage = () => {
   };
 
   /* ====== Staff handlers ====== */
-  const toModalStaff = (row: AdminStaffRow): ModalStaff => ({
-    id: row.id,
-    name: row.name,
-    role: row.role,
-    email: row.email,
-    phone: row.phone,
-    joinDate: row.joinDate,
-  });
+const toModalStaff = (row: AdminStaffRow): ModalStaff => ({
+  id: row.id,
+  name: row.name,
+  email: row.email,
+  phoneNumber: row.phone,
+  role: row.role, // NEW
+});
+
+
 
   const handleAddStaff = () => {
     setFormMode("add");
@@ -419,27 +437,19 @@ const StaffManagementPage = () => {
     role: UiRole;
     joinDate?: string;
   }) => {
-    const enumRole = UI_TO_BE_STAFF[payload.role];
+    const dbRole = UI_ROLE_TO_DB[payload.role];
     setIsSubmitting(true);
 
-    const excludeId =
-      formMode === "edit" && selectedRow ? selectedRow.id : undefined;
+    const excludeId = formMode === "edit" && selectedRow ? selectedRow.id : undefined;
 
     if (isDuplicateEmail(payload.email, excludeId)) {
-      toast({
-        title: "Lỗi",
-        description: "Email đã tồn tại trong danh sách.",
-        variant: "destructive",
-      });
+      toast({ title: "Lỗi", description: "Email đã tồn tại", variant: "destructive" });
       setIsSubmitting(false);
       return;
     }
+
     if (isDuplicatePhone(payload.phone, excludeId)) {
-      toast({
-        title: "Lỗi",
-        description: "Số điện thoại đã tồn tại trong danh sách.",
-        variant: "destructive",
-      });
+      toast({ title: "Lỗi", description: "Số điện thoại đã tồn tại", variant: "destructive" });
       setIsSubmitting(false);
       return;
     }
@@ -450,50 +460,41 @@ const StaffManagementPage = () => {
           fullName: payload.name,
           email: payload.email,
           phoneNumber: payload.phone,
-          role: enumRole,
-          storeId: CURRENT_STORE_ID,
+          role: dbRole,
         });
-        toast({ title: "Tạo nhân viên thành công" });
       } else if (formMode === "edit" && selectedRow) {
-        const updateData: UpdateStaffRequest = {
-          fullName: payload.name,
-          email: payload.email,
-          phoneNumber: payload.phone,
-          role: enumRole,
-        };
-        await updateStaffMut({ id: selectedRow.id, data: updateData });
-        toast({ title: "Cập nhật nhân viên thành công" });
+        await updateStaffMut({
+          id: selectedRow.id,
+          data: {
+            fullName: payload.name,
+            email: payload.email,
+            phoneNumber: payload.phone,
+            role: dbRole,
+          },
+        });
       }
 
-      await qc.invalidateQueries({ queryKey: ["staffs"] });
-      await qc.invalidateQueries({ queryKey: ["staffs", "my-store-staff"] });
-
+      toast({ title: "Success" });
+      qc.invalidateQueries({ queryKey: ["staffs"] });
+      qc.invalidateQueries({ queryKey: ["staffs", "my-store-staff"] });
       setIsFormModalOpen(false);
-    } catch (e: unknown) {
-      toast({
-        title: "Lỗi",
-        description: extractErrorMessage(e),
-        variant: "destructive",
-      });
+    } catch (e) {
+      toast({ title: "Lỗi", description: extractErrorMessage(e), variant: "destructive" });
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const handleFormSubmitFromModal: ModalOnSubmit = (data) => {
-    const name = data.name ?? "";
-    const email = data.email ?? "";
-    const phone = data.phone ?? "";
-    const role = data.role ?? "waiter";
 
+  const handleFormSubmitFromModal: ModalOnSubmit = (data) => {
     void saveStaff({
-      name,
-      email,
-      phone,
-      role,
-      joinDate: data.joinDate,
+      name: data.name ?? "",
+      email: data.email ?? "",
+      phone: data.phoneNumber ?? "",
+      role: data.role,
     });
   };
+
 
   const handleDeleteConfirm = async () => {
     if (!selectedRow) return;
@@ -518,12 +519,13 @@ const StaffManagementPage = () => {
 
   /* ====== Accounts handlers (edit-only) ====== */
   const handleEditUserAccount = (account: AccountRow) => {
+    const rawRole = accountsRes?.find(u => u.id === account.id)?.role;
+    const dbRole = normalizeDbRole(rawRole);
+
     const initial: SelectedUA = {
       id: account.id,
       username: account.name,
-      role: (
-        accountsRes?.find((u) => u.id === account.id)?.role ?? "WAITSTAFF"
-      ).toUpperCase(),
+      role: dbRole,
       passwordText: account.passwordText ?? "",
     };
     setSelectedUserAccount(initial);
@@ -534,12 +536,20 @@ const StaffManagementPage = () => {
     try {
       if (!selectedUserAccount) return;
 
+      // role cũ của user account → chuẩn DB role
+      const oldDbRole = normalizeDbRole(selectedUserAccount.role);
+
+      // role mới nếu user chọn → convert UI role -> DB role
+      const newDbRole = data.role
+        ? UI_ROLE_TO_DB[data.role as UiRole]
+        : oldDbRole;
+
       await updateUserAccountMut({
         id: selectedUserAccount.id,
         body: {
           username: data.username ?? selectedUserAccount.username,
-          role: data.role ?? selectedUserAccount.role, // DB role name
-          ...(data.password !== undefined ? { password: data.password } : {}),
+          role: newDbRole,
+          ...(data.password ? { password: data.password } : {}),
         },
       });
 
@@ -547,9 +557,11 @@ const StaffManagementPage = () => {
         title: "Updated",
         description: "User account updated successfully.",
       });
+
       setIsUserFormModalOpen(false);
       setSelectedUserAccount(undefined);
-    } catch (e: unknown) {
+
+    } catch (e) {
       toast({
         title: "Lỗi",
         description: extractErrorMessage(e),
@@ -557,6 +569,7 @@ const StaffManagementPage = () => {
       });
     }
   };
+
 
   const handleUserAccountDeleteConfirm = async () => {
     if (!selectedUserAccount) return;
@@ -917,14 +930,13 @@ const StaffManagementPage = () => {
                               variant="ghost"
                               size="sm"
                               onClick={() => {
+                                const rawRole = accountsRes?.find(u => u.id === account.id)?.role;
+                                const dbRole = normalizeDbRole(rawRole);
+
                                 setSelectedUserAccount({
                                   id: account.id,
                                   username: account.name,
-                                  role: (
-                                    accountsRes?.find(
-                                      (u) => u.id === account.id
-                                    )?.role ?? "WAITSTAFF"
-                                  ).toUpperCase(),
+                                  role: dbRole,
                                   passwordText: account.passwordText ?? "",
                                 });
                                 setIsUserDeleteDialogOpen(true);
@@ -985,13 +997,13 @@ const StaffManagementPage = () => {
                       variant="outline"
                       size="sm"
                       onClick={() => {
+                        const rawRole = accountsRes?.find(u => u.id === account.id)?.role;
+                        const dbRole = normalizeDbRole(rawRole);
+
                         setSelectedUserAccount({
                           id: account.id,
                           username: account.name,
-                          role: (
-                            accountsRes?.find((u) => u.id === account.id)
-                              ?.role ?? "WAITSTAFF"
-                          ).toUpperCase(),
+                          role: dbRole,
                           passwordText: account.passwordText ?? "",
                         });
                         setIsUserDeleteDialogOpen(true);
@@ -1015,9 +1027,8 @@ const StaffManagementPage = () => {
         onSubmit={handleFormSubmitFromModal}
         staff={selectedModalStaff}
         mode={formMode}
-        isEmailTaken={(email, excludeId) => isDuplicateEmail(email, excludeId)}
-        isPhoneTaken={(phone, excludeId) => isDuplicatePhone(phone, excludeId)}
-      />
+      /> 
+
 
       <UserAccountFormModal
         open={isUserFormModalOpen}

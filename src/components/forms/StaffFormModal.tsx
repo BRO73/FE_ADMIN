@@ -1,175 +1,141 @@
-import { useState, useEffect } from "react";
-import { useForm } from "react-hook-form";
-import { zodResolver } from "@hookform/resolvers/zod";
-import * as z from "zod";
-
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
-
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { useEffect, useState } from "react";
 
-// 🔥 Schema khớp backend Staff entity
-const staffSchema = z.object({
-  name: z.string().min(2, "Name must be at least 2 characters"),
-  email: z.string().email("Invalid email"),
-  phoneNumber: z.string().min(9, "Phone must be at least 9 digits"),
-});
-
-export type StaffFormData = z.infer<typeof staffSchema>;
-
-interface Staff {
-  id: number;
+export type StaffFormData = {
   name: string;
   email: string;
   phoneNumber: string;
-}
+  role: "waiter" | "chef" | "cashier" | "admin";
+};
 
-interface StaffFormModalProps {
+interface Props {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: (data: StaffFormData) => void;
-  staff?: Staff;
+  staff?: {
+    id: number;
+    name: string;
+    email: string;
+    phoneNumber: string;
+    role: "waiter" | "chef" | "cashier" | "admin";
+  };
   mode: "add" | "edit";
 }
 
-const StaffFormModal = ({
-  isOpen,
-  onClose,
-  onSubmit,
-  staff,
-  mode,
-}: StaffFormModalProps) => {
-  const { toast } = useToast();
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const form = useForm<StaffFormData>({
-    resolver: zodResolver(staffSchema),
-    defaultValues: {
-      name: "",
-      email: "",
-      phoneNumber: "",
-    },
+const StaffFormModal = ({ isOpen, onClose, onSubmit, staff, mode }: Props) => {
+  const [formData, setFormData] = useState<StaffFormData>({
+    name: "",
+    email: "",
+    phoneNumber: "",
+    role: "waiter",
   });
 
   useEffect(() => {
-    if (staff && mode === "edit") {
-      form.reset({
+    if (staff) {
+      setFormData({
         name: staff.name,
         email: staff.email,
         phoneNumber: staff.phoneNumber,
+        role: staff.role, // lấy đúng role khi edit
       });
     } else {
-      form.reset({
+      setFormData({
         name: "",
         email: "",
         phoneNumber: "",
+        role: "waiter", // default khi create
       });
     }
-  }, [staff, mode]);
+  }, [staff, isOpen]);
 
-  const handleSubmit = async (data: StaffFormData) => {
-    setIsSubmitting(true);
-
-    try {
-      onSubmit(data);
-
-      toast({
-        title: mode === "add" ? "Staff Added" : "Staff Updated",
-        description: `${data.name} saved successfully.`,
-      });
-
-      onClose();
-    } finally {
-      setIsSubmitting(false);
-    }
+  const handleSubmit = () => {
+    onSubmit(formData);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle>
-            {mode === "add" ? "Add Staff" : "Edit Staff"}
+            {mode === "add" ? "Add New Staff" : "Edit Staff"}
           </DialogTitle>
-          <DialogDescription>
-            Enter staff information below.
-          </DialogDescription>
         </DialogHeader>
 
-        <Form {...form}>
-          <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-4">
-
-            <FormField
-              control={form.control}
-              name="name"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Full Name</FormLabel>
-                  <FormControl>
-                    <Input placeholder="John Smith" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+        <div className="space-y-4">
+          {/* NAME */}
+          <div className="grid gap-2">
+            <Label>Full Name</Label>
+            <Input
+              value={formData.name}
+              onChange={(e) =>
+                setFormData({ ...formData, name: e.target.value })
+              }
+              placeholder="Enter full name..."
             />
+          </div>
 
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Email</FormLabel>
-                  <FormControl>
-                    <Input type="email" placeholder="example@mail.com" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+          {/* EMAIL */}
+          <div className="grid gap-2">
+            <Label>Email</Label>
+            <Input
+              type="email"
+              value={formData.email}
+              onChange={(e) =>
+                setFormData({ ...formData, email: e.target.value })
+              }
+              placeholder="Enter email..."
             />
+          </div>
 
-            <FormField
-              control={form.control}
-              name="phoneNumber"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Phone Number</FormLabel>
-                  <FormControl>
-                    <Input placeholder="0987654321" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
+          {/* PHONE */}
+          <div className="grid gap-2">
+            <Label>Phone Number</Label>
+            <Input
+              value={formData.phoneNumber}
+              onChange={(e) =>
+                setFormData({ ...formData, phoneNumber: e.target.value })
+              }
+              placeholder="Enter phone number..."
             />
+          </div>
 
-            <DialogFooter>
-              <Button variant="outline" onClick={onClose}>
-                Cancel
-              </Button>
+          {/* ROLE */}
+          <div className="grid gap-2">
+            <Label>Role</Label>
+            <select
+              value={formData.role}
+              onChange={(e) =>
+                setFormData({
+                  ...formData,
+                  role: e.target.value as StaffFormData["role"],
+                })
+              }
+              className="border rounded-md px-2 py-2"
+            >
+              <option value="waiter">Waiter</option>
+              <option value="chef">Chef</option>
+              <option value="cashier">Cashier</option>
+              <option value="admin">Admin</option>
+            </select>
+          </div>
 
-              <Button type="submit" disabled={isSubmitting}>
-                {isSubmitting ? "Saving..." : mode === "add" ? "Add" : "Save"}
-              </Button>
-            </DialogFooter>
-
-          </form>
-        </Form>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" onClick={onClose}>
+              Cancel
+            </Button>
+            <Button onClick={handleSubmit}>
+              {mode === "add" ? "Create Staff" : "Save Changes"}
+            </Button>
+          </div>
+        </div>
       </DialogContent>
     </Dialog>
   );
