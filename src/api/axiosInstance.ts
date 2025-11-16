@@ -2,7 +2,7 @@ import axios from "axios";
 import { Code } from "lucide-react";
 
 const api = axios.create({
-  baseURL: "https://introspectible-ernest-brainsickly.ngrok-free.dev",
+  baseURL: " https://be-aynl.onrender.com/api",
   headers: {
     "Content-Type": "application/json",
   },
