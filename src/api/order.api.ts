@@ -1,5 +1,5 @@
 import api from "./axiosInstance";
-import { OrderRequest, OrderResponse } from "@/types/type";
+import { OrderRequest, OrderResponse, TableResponse } from "@/types/type";
 
 /**
  * Tạo order mới (thường là khi check-out giỏ hàng)
@@ -122,4 +122,65 @@ export const getOrdersByStatus = async (
 ): Promise<OrderResponse[]> => {
   const response = await api.get<OrderResponse[]>(`/orders/status/${status}`);
   return response.data;
+};
+
+export const unlinkCustomerFromOrder = async (
+  orderId: number
+): Promise<OrderResponse> => {
+  const response = await api.put<OrderResponse>(
+    `/orders/${orderId}/unlink-customer`
+  );
+  return response.data;
+};
+
+// Mapper: API → UI (Lấy từ file tableApi.js của bạn)
+const mapToTable = (res: TableResponse): TableResponse => ({
+  id: res.id,
+  tableNumber: res.tableNumber,
+  capacity: res.capacity,
+  locationId: res.locationId,
+  locationName: res.locationName,
+  status: res.status as "Available" | "Occupied" | "Reserved" | "Maintenance",
+});
+
+/**
+ * Lấy tất cả danh sách bàn (cho modal Tách/Gộp)
+ */
+export const getTables = async (): Promise<TableResponse[]> => {
+  const { data } = await api.get<TableResponse[]>("/tables");
+  return data.map(mapToTable);
+};
+
+/**
+ * Lấy danh sách order (chỉ PENDING) (cho modal Tách/Gộp)
+ */
+export const getPendingOrders = async (): Promise<OrderResponse[]> => {
+  // Đảm bảo backend hỗ trợ filter ?status=PENDING
+  const { data } = await api.get<OrderResponse[]>("/orders/status/PENDING");
+  return data;
+};
+
+/**
+ * API Tách đơn
+ * Gửi request Tách đơn lên backend
+ */
+export const splitOrder = async (request: {
+  sourceOrderId: number;
+  newTableId: number;
+  splitItems: Record<number, number>;
+}): Promise<OrderResponse> => {
+  const { data } = await api.post<OrderResponse>("/orders/split", request);
+  return data;
+};
+
+/**
+ * API Gộp đơn
+ * Gửi request Gộp đơn lên backend
+ */
+export const mergeOrder = async (request: {
+  sourceOrderId: number;
+  targetOrderId: number;
+}): Promise<OrderResponse> => {
+  const { data } = await api.post<OrderResponse>("/orders/merge", request);
+  return data;
 };
