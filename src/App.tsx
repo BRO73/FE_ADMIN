@@ -27,8 +27,7 @@ import TableManagement from "./pages/TableManagement";
 import KitchenDashboardPage from "./pages/KitchenDashboardPage";
 import LiveOrderPage from "./pages/LiveOrderPage";
 import MenuOrderPage from "./pages/MenuOrderPage";
-
-
+import OrderManagement from "./pages/OrderManagement";
 import MenuAvailabilityPage from "./pages/MenuAvailabilityPage";
 
 const queryClient = new QueryClient();
@@ -57,6 +56,7 @@ const App = () => (
             <Route path="/tables" element={<TableManagement />} />
             <Route path="/live-order" element={<LiveOrderPage />} />
             <Route path="/menu-order" element={<MenuOrderPage />} />
+            <Route path="/orders" element={<OrderManagement />} />
             <Route path="/admin" element={<DashboardLayout />}>
               <Route index element={<DashboardPage />} />
               <Route path="tables" element={<TableManagementPage />} />
@@ -73,9 +73,6 @@ const App = () => (
               <Route path="reports" element={<ReportsPage />} />
               <Route path="transactions" element={<TransactionsPage />} />
               <Route path="tablemap" element={<TableMapEditor />} />
-              
-
-
             </Route>
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
