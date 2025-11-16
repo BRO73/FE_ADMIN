@@ -141,18 +141,18 @@ export const OrderCard: React.FC<OrderCardProps> = ({
                         {/* Nhóm nút serve với màu xanh lá */}
                         <div className="flex items-center gap-1">
                             {/* Luôn hiển thị nút > ngay cả khi quantity = 1 */}
-                            <Button
-                                variant="outline"
-                                size="icon"
-                                className="rounded-full border-green-500 text-green-500 hover:bg-green-500 hover:text-white h-8 w-8 flex-shrink-0"
-                                onClick={() => onServeOneUnit?.(ticket.orderDetailId)}
-                            >
-                                <ChevronRight className="h-4 w-4" />
-                            </Button>
+                            {/*<Button*/}
+                            {/*    variant="outline"*/}
+                            {/*    size="icon"*/}
+                            {/*    className="rounded-full border-green-500 text-green-500 hover:bg-green-500 hover:text-white h-8 w-8 flex-shrink-0"*/}
+                            {/*    onClick={() => onServeOneUnit?.(ticket.orderDetailId)}*/}
+                            {/*>*/}
+                            {/*    <ChevronRight className="h-4 w-4" />*/}
+                            {/*</Button>*/}
                             <Button
                                 size="icon"
                                 className="rounded-full bg-green-500 hover:bg-green-600 text-white h-8 w-8 flex-shrink-0"
-                                onClick={() => onServeAllUnits?.(ticket.orderDetailId)}
+                                onClick={() => onServeOneUnit?.(ticket.orderDetailId)}
                             >
                                 <ChevronsRight className="h-4 w-4" />
                             </Button>
