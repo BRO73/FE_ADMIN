@@ -2,7 +2,7 @@ import axios from "axios";
 import { Code } from "lucide-react";
 
 const api = axios.create({
-  baseURL: "https://abc123.ngrok-free.app/api/auth/login",
+  baseURL: "https://introspectible-ernest-brainsickly.ngrok-free.dev",
   headers: {
     "Content-Type": "application/json",
   },
