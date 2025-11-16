@@ -2,7 +2,7 @@ import axios from "axios";
 import { Code } from "lucide-react";
 
 const api = axios.create({
-  baseURL: " https://be-aynl.onrender.com/api",
+  baseURL: "https://be-aynl.onrender.com/api",
   headers: {
     "Content-Type": "application/json",
   },
@@ -16,12 +16,5 @@ api.interceptors.request.use((config) => {
   }
   return config;
 });
-
-export function getApiOrigin(): string {
-  const raw = (api.defaults.baseURL ?? "").trim();
-  if (!raw) return "http://localhost:8082"; // fallback an toàn
-  const noTrail = raw.replace(/\/+$/, "");
-  return noTrail.endsWith("/api") ? noTrail.slice(0, -4) : noTrail;
-}
 
 export default api;

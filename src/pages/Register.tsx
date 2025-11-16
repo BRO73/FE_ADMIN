@@ -57,18 +57,21 @@ const Register = () => {
 
     setLoading(true);
     try {
-      const response = await fetch("http://localhost:8082/api/auth/register", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        // ✅ KHÔNG GỬI confirmPassword
-        body: JSON.stringify({
-          username: formData.username,
-          password: formData.password,
-          role: formData.role,
-        }),
-      });
+      const response = await fetch(
+        "https://be-aynl.onrender.com/api/auth/register",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          // ✅ KHÔNG GỬI confirmPassword
+          body: JSON.stringify({
+            username: formData.username,
+            password: formData.password,
+            role: formData.role,
+          }),
+        }
+      );
 
       if (!response.ok) {
         const errData = await response.json();
@@ -79,7 +82,8 @@ const Register = () => {
 
       toast({
         title: "🎉 Đăng ký thành công!",
-        description: data.message || `Chào mừng ${formData.username} gia nhập hệ thống.`,
+        description:
+          data.message || `Chào mừng ${formData.username} gia nhập hệ thống.`,
       });
 
       // reset form sau khi đăng ký
@@ -107,7 +111,6 @@ const Register = () => {
 
         <div className="auth-card">
           <form onSubmit={handleSubmit} className="space-y-6">
-
             <FloatingInput
               name="username"
               type="text"

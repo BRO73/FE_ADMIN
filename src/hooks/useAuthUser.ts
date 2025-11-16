@@ -9,11 +9,14 @@ export const useAuthUser = () => {
       if (!token) return;
 
       try {
-        const res = await fetch("http://localhost:8082/api/users/profile", {
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
+        const res = await fetch(
+          "https://be-aynl.onrender.com/api/users/profile",
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         const data = await res.json();
         setUser(data.data); // StaffProfileResponse

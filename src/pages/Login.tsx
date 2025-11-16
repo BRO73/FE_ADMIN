@@ -18,11 +18,11 @@ const Login = () => {
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    setFormData((prev) => ({ ...prev, [name]: value }));
 
     // Clear error khi user nhập lại
     if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: "" }));
+      setErrors((prev) => ({ ...prev, [name]: "" }));
     }
   };
 
@@ -52,16 +52,19 @@ const Login = () => {
     setLoading(true);
 
     try {
-      const response = await fetch("http://localhost:8082/api/auth/login", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          username: formData.username,
-          password: formData.password,
-        }),
-      });
+      const response = await fetch(
+        "https://be-aynl.onrender.com/api/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            username: formData.username,
+            password: formData.password,
+          }),
+        }
+      );
 
       if (!response.ok) {
         throw new Error("Login failed");
@@ -81,7 +84,6 @@ const Login = () => {
 
       // 👉 Điều hướng sang dashboard (hoặc trang chủ)
       navigate("/admin");
-
     } catch (error) {
       toast({
         title: "Đăng nhập thất bại",
