@@ -268,44 +268,27 @@ const LiveOrderPage: React.FC = () => {
     setError(null);
 
     try {
-      const activeOrder = orders.find((o) => o.id === activeOrderId);
-      if (!activeOrder) {
-        throw new Error("Không tìm thấy order hiện tại");
-      }
+      // CHỈ gửi những món mới từ local cart, không merge với database
+      const newItems: OrderDetailRequest[] = itemsToSubmit.map((item) => ({
+        menuItemId: item.menuItemId,
+        quantity: item.quantity, // Chỉ gửi số lượng mới thêm
+        specialRequirements: item.note || "",
+      }));
 
-      const mergedItems: OrderDetailRequest[] = [];
-      const existingItemsMap = new Map<number, number>();
+      console.log("🔄 Chỉ gửi món mới từ local cart:", newItems);
 
-      activeOrder.items.forEach((item) => {
-        const existingQty = existingItemsMap.get(item.menuItem.id) || 0;
-        existingItemsMap.set(item.menuItem.id, existingQty + item.quantity);
-      });
+      await addItemsToOrder(activeOrderId, newItems);
 
-      for (const localItem of itemsToSubmit) {
-        const existingQty = existingItemsMap.get(localItem.menuItemId) || 0;
-        const totalQty = existingQty + localItem.quantity;
-
-        mergedItems.push({
-          menuItemId: localItem.menuItemId,
-          quantity: totalQty,
-          specialRequirements: localItem.note || "",
-        });
-
-        existingItemsMap.set(localItem.menuItemId, totalQty);
-      }
-
-      console.log("🔄 Merged items to submit:", mergedItems);
-
-      await addItemsToOrder(activeOrderId, mergedItems);
-
+      // Xóa local cart sau khi gửi thành công
       setLocalCarts((prev) => ({
         ...prev,
         [activeOrderId]: [],
       }));
 
+      // Tải lại orders để cập nhật dữ liệu mới nhất
       await loadOrders(tableId);
 
-      console.log("✅ Đã merge và cập nhật số lượng thành công");
+      console.log("✅ Đã thêm món mới thành công");
     } catch (err) {
       console.error("Lỗi khi gửi đơn hàng:", err);
       setError("Không thể gửi đơn hàng. Vui lòng thử lại.");
@@ -633,20 +616,22 @@ const LiveOrderPage: React.FC = () => {
     return result;
   }, [activeOrderId, orders, localCarts]);
 
-  const handleQuantityChange = (menuItemId: number, totalQuantity: number) => {
+  // Sửa lỗi: Cập nhật đúng số lượng local khi thay đổi
+  const handleQuantityChange = (menuItemId: number, newTotalQuantity: number) => {
     if (!activeOrderId) return;
 
     const displayItem = displayItems.find((i) => i.menuItemId === menuItemId);
     if (!displayItem) return;
 
     const dbQty = displayItem.dbQty;
-    const newLocalQty = totalQuantity - dbQty;
+    const newLocalQty = Math.max(0, newTotalQuantity - dbQty);
 
     setLocalCarts((prevLocalCarts) => {
       const newLocalCarts = { ...prevLocalCarts };
       let currentCart = newLocalCarts[activeOrderId] || [];
 
-      if (newLocalQty <= 0) {
+      if (newLocalQty === 0) {
+        // Nếu không còn số lượng local, xóa item khỏi local cart
         currentCart = currentCart.filter((i) => i.menuItemId !== menuItemId);
       } else {
         const existingItem = currentCart.find(
