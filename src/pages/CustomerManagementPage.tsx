@@ -32,14 +32,23 @@ const CustomerManagementPage = () => {
   const fetchCustomers = async () => {
     setIsLoading(true);
     try {
-      const customerData = await getAllCustomers();
-      const mappedCustomers: Customer[] = customerData.map(customer => ({
-        id: customer.userId,
-        name: customer.fullName,
-        email: customer.email || "N/A",
-        phone: customer.phoneNumber || "N/A",
-        status: "active" // Mặc định active vì API không cung cấp status
-      }));
+      const response = await getAllCustomers();
+      const customerData = Array.isArray(response) ? response : [];
+      const mappedCustomers: Customer[] = customerData.map((customer, index) => {
+        let customerId = customer.id;
+        if (customerId === undefined || customerId === null) {
+          customerId = index; // Fallback nếu không có ID
+        }
+        
+        return {
+          id: customerId,
+          name: customer.fullName || "Unknown Customer",
+          email: customer.email || "No email",
+          phone: customer.phoneNumber || "No phone",
+          status: "active"
+        };
+      });
+
       setCustomers(mappedCustomers);
     } catch (error) {
       toast({
@@ -56,11 +65,17 @@ const CustomerManagementPage = () => {
     fetchCustomers();
   }, []);
 
-  const filteredCustomers = customers.filter(customer =>
-    customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    customer.phone.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  // Fixed filter function with null checks
+  const filteredCustomers = customers.filter(customer => {
+    const name = customer.name || "";
+    const email = customer.email || "";
+    const phone = customer.phone || "";
+    const search = searchTerm.toLowerCase();
+    
+    return name.toLowerCase().includes(search) ||
+           email.toLowerCase().includes(search) ||
+           phone.toLowerCase().includes(search);
+  });
 
   const getStatusColor = (status: Customer["status"]) => {
     switch (status) {
@@ -76,8 +91,14 @@ const CustomerManagementPage = () => {
   };
 
   const handleDeleteConfirm = async () => {
-    if (!selectedCustomer) return;
-
+    if (!selectedCustomer) {
+      toast({
+        title: "Error",
+        description: "No customer selected for deletion",
+        variant: "destructive",
+      });
+      return;
+    }
     setIsSubmitting(true);
     try {
       await deleteCustomer(selectedCustomer.id);
@@ -89,6 +110,7 @@ const CustomerManagementPage = () => {
       setIsDeleteDialogOpen(false);
       setSelectedCustomer(undefined);
     } catch (error) {
+      console.error("Error deleting customer:", error); // Debug log
       toast({
         title: "Error",
         description: "Failed to delete customer. Please try again.",
@@ -109,10 +131,6 @@ const CustomerManagementPage = () => {
             Manage restaurant customers.
           </p>
         </div>
-        <Button className="btn-primary">
-          <Plus className="w-4 h-4 mr-2" />
-          Add New Customer
-        </Button>
       </div>
 
       {/* Search */}
