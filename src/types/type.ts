@@ -151,6 +151,7 @@ export interface BookingResponse {
 }
 
 export interface CustomerResponse {
+  id?: number;
   userId: number;
   fullName: string;
   phoneNumber: string;
