@@ -10,30 +10,30 @@
     --background: 0 0% 100%;
     --background-login: 0 0% 96%;
     --foreground: 217 19% 27%;
-    
+
     --card: 0 0% 100%;
     --card-foreground: 217 19% 27%;
-    
+
     --popover: 0 0% 100%;
     --popover-foreground: 217 19% 27%;
-    
+
     /* Primary Blue Shades */
     --primary: 217 91% 60%;
     --primary-foreground: 0 0% 100%;
     --primary-light: 217 91% 95%;
     --primary-dark: 217 91% 45%;
     --primary-hover: 210 90% 50%;
-    
+
     /* Secondary Grays with Blue Undertones */
     --secondary: 217 12% 97%;
     --secondary-foreground: 217 19% 27%;
-    
+
     --muted: 217 12% 97%;
     --muted-foreground: 217 10% 64%;
-    
+
     --accent: 217 12% 97%;
     --accent-foreground: 217 19% 27%;
-    
+
     /* Status Colors */
     --success: 142 76% 36%;
     --success-foreground: 0 0% 100%;
@@ -41,26 +41,26 @@
     --warning-foreground: 0 0% 100%;
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
-    
+
     /* UI Elements */
     --border: 217 12% 92%;
     --input: 217 12% 97%;
     --ring: 217 91% 60%;
     --input-border: 0 0% 88%;
     --input-focus: 210 90% 55%;
-    
+
     --radius: 0.75rem;
-    
+
     /* Custom Dashboard Variables */
     --sidebar-width: 16rem;
     --topbar-height: 4rem;
     --content-padding: 1.5rem;
-    
+
     /* Shadows */
     --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
     --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
     --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
-    
+
     /* Gradients */
     --gradient-primary: linear-gradient(135deg, hsl(var(--primary)), hsl(var(--primary-dark)));
     --gradient-subtle: linear-gradient(135deg, hsl(var(--background)), hsl(var(--secondary)));
@@ -97,27 +97,27 @@
     /* Dark mode with blue monochrome theme - Brighter variant */
     --background: 217 25% 11%;
     --foreground: 217 10% 90%;
-    
+
     --card: 217 25% 14%;
     --card-foreground: 217 10% 90%;
-    
+
     --popover: 217 25% 14%;
     --popover-foreground: 217 10% 90%;
-    
+
     --primary: 217 91% 68%;
     --primary-foreground: 217 25% 8%;
     --primary-light: 217 91% 20%;
     --primary-dark: 217 91% 55%;
-    
+
     --secondary: 217 25% 18%;
     --secondary-foreground: 217 10% 90%;
-    
+
     --muted: 217 25% 18%;
     --muted-foreground: 217 10% 70%;
-    
+
     --accent: 217 25% 18%;
     --accent-foreground: 217 10% 90%;
-    
+
     --border: 217 25% 22%;
     --input: 217 25% 18%;
     --ring: 217 91% 68%;
@@ -133,32 +133,34 @@
     @apply bg-background text-foreground;
   }
 }
+
 @layer components {
   .floating-input-group {
     @apply relative mt-5;
   }
 
   .floating-input {
-    @apply w-full px-4 py-4 text-base bg-background border border-input-border rounded-xl
-    focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary
-    transition-all duration-200 placeholder-transparent
-    min-h-[56px];
+    @apply w-full px-4 py-4 text-base bg-background border border-input-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all duration-200 placeholder-transparent min-h-[56px];
   }
 
   .floating-label {
-    @apply absolute left-3 -top-2 bg-background px-2 text-sm text-muted-foreground
-    transition-all duration-200 pointer-events-none;
+    @apply absolute left-3 -top-2 bg-background px-2 text-sm text-muted-foreground transition-all duration-200 pointer-events-none;
   }
 
-  .floating-input:focus ~ .floating-label,
-  .floating-input:not(:placeholder-shown) ~ .floating-label {
+  .floating-input:focus~.floating-label,
+  .floating-input:not(:placeholder-shown)~.floating-label {
     @apply text-primary text-xs;
   }
 
   /* Loading spinner animation */
   @keyframes spin-loading {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
+    0% {
+      transform: rotate(0deg);
+    }
+
+    100% {
+      transform: rotate(360deg);
+    }
   }
 
   .loading-spinner {
@@ -168,31 +170,21 @@
 
   /* Button variants - Mobile first */
   .btn-auth {
-    @apply w-full py-4 px-6 bg-primary hover:bg-primary-hover text-primary-foreground
-    rounded-xl font-medium transition-all duration-200
-    focus:outline-none focus:ring-2 focus:ring-primary/30
-    disabled:opacity-70 disabled:cursor-not-allowed
-    flex items-center justify-center gap-2
-    min-h-[56px] text-base;
+    @apply w-full py-4 px-6 bg-primary hover:bg-primary-hover text-primary-foreground rounded-xl font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-primary/30 disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center gap-2 min-h-[56px] text-base;
   }
 
   .btn-link {
-    @apply text-primary hover:text-primary-hover transition-colors duration-200
-    text-sm font-medium;
+    @apply text-primary hover:text-primary-hover transition-colors duration-200 text-sm font-medium;
   }
 
   /* Card styling - Mobile first */
   .auth-card {
-    @apply bg-card border border-border rounded-2xl shadow-lg
-    p-4 mx-3 w-full
-    sm:p-6 sm:mx-4 sm:max-w-md;
+    @apply bg-card border border-border rounded-2xl shadow-lg p-4 mx-3 w-full sm:p-6 sm:mx-4 sm:max-w-md;
   }
 
   /* Support footer styling - Mobile first */
   .support-footer {
-    @apply flex items-center justify-between text-xs text-muted-foreground
-    mt-6 px-3
-    sm:text-sm sm:mt-8 sm:px-4;
+    @apply flex items-center justify-between text-xs text-muted-foreground mt-6 px-3 sm:text-sm sm:mt-8 sm:px-4;
   }
 
   /* Vietnam flag emoji styling */
@@ -204,79 +196,85 @@
   .dashboard-container {
     @apply min-h-screen bg-background;
   }
-  
+
   .sidebar-container {
     @apply fixed left-0 top-0 z-40 h-full w-64 transform bg-card border-r border-border transition-transform duration-300 ease-in-out lg:translate-x-0;
   }
-  
+
   .sidebar-container.collapsed {
     @apply -translate-x-full lg:translate-x-0 lg:w-16;
   }
-  
+
   .main-content {
     @apply flex-1 lg:ml-64 transition-all duration-300 ease-in-out;
   }
-  
+
   .main-content.sidebar-collapsed {
     @apply lg:ml-16;
   }
-  
+
   /* Card Components */
   .dashboard-card {
     @apply bg-card rounded-xl border border-border p-6 shadow-sm hover:shadow-md transition-shadow duration-200;
   }
-  
+
   .metric-card {
     @apply dashboard-card flex items-center justify-between;
   }
-  
+
   /* Button Variants */
   .btn-admin {
     @apply px-4 py-2 rounded-lg font-medium transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2;
   }
-  
+
   .btn-primary {
     @apply btn-admin bg-primary text-primary-foreground hover:bg-primary/90 focus:ring-primary;
   }
-  
+
   .btn-secondary {
     @apply btn-admin bg-secondary text-secondary-foreground border border-border hover:bg-accent focus:ring-primary;
   }
-  
+
   .btn-destructive {
     @apply btn-admin bg-destructive text-destructive-foreground hover:bg-destructive/90 focus:ring-destructive;
   }
-  
+
   /* Form Elements */
   .form-input {
     @apply w-full px-3 py-2 bg-input border border-border rounded-lg text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-primary focus:border-transparent transition-colors duration-200;
   }
-  
+
   .form-label {
     @apply block text-sm font-medium text-foreground mb-2;
   }
-  
+
   /* Table Styles */
   .data-table {
     @apply w-full bg-card rounded-xl border border-border overflow-hidden;
   }
-  
+
   .table-header {
     @apply bg-muted px-6 py-4 border-b border-border;
   }
-  
+
   .table-row {
     @apply px-6 py-4 border-b border-border hover:bg-accent/50 transition-colors duration-150;
   }
-  
+
   /* Mobile Responsive */
   .mobile-card {
     @apply block lg:hidden bg-card rounded-xl border border-border p-4 mb-4 shadow-sm;
   }
-  
+
   .desktop-table {
     @apply hidden lg:block;
   }
+
+  .pdf-export * {
+    overflow: visible !important;
+    max-height: none !important;
+  }
+
 }
 
 @layer base {
