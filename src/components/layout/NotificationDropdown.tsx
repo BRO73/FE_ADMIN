@@ -36,7 +36,7 @@ const NotificationDropdown = () => {
 
     const loadNewBookings = async () => {
       try {
-        const res = await fetch("http://localhost:8082/api/bookings", {
+        const res = await fetch("https://be-aynl.onrender.com/api/bookings", {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
@@ -50,7 +50,9 @@ const NotificationDropdown = () => {
         const generatedNoti = data.map((bk) => ({
           id: String(bk.id),
           title: "New Booking",
-          message: `Booking by ${bk.customerName} at ${formatDate(bk.bookingTime)} (Table ${bk.table?.[0]?.tableNumber ?? "?"})`,
+          message: `Booking by ${bk.customerName} at ${formatDate(
+            bk.bookingTime
+          )} (Table ${bk.table?.[0]?.tableNumber ?? "?"})`,
           time: timeAgo(bk.createdAt),
           read: false,
         }));
@@ -111,7 +113,12 @@ const NotificationDropdown = () => {
           <h3 className="font-semibold">Notifications</h3>
 
           {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" className="text-xs" onClick={markAllAsRead}>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="text-xs"
+              onClick={markAllAsRead}
+            >
               Mark all as read
             </Button>
           )}
@@ -132,7 +139,9 @@ const NotificationDropdown = () => {
 
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
-                        <p className="font-medium text-sm">{notification.title}</p>
+                        <p className="font-medium text-sm">
+                          {notification.title}
+                        </p>
 
                         {!notification.read && (
                           <Button

@@ -6,10 +6,10 @@ import type {
 } from "./sources/IKitchenSource";
 import api from "@/api/axiosInstance";
 
-/** Lấy origin BE từ axios.baseURL ("http://localhost:8082/api" -> "http://localhost:8082") */
+/** Lấy origin BE từ axios.baseURL ("https://be-aynl.onrender.com/api" -> "https://be-aynl.onrender.com") */
 function resolveApiBase(): string {
   const raw = (api.defaults.baseURL ?? "").trim();
-  if (!raw) return "http://localhost:8082";
+  if (!raw) return "https://be-aynl.onrender.com";
   const noTrail = raw.replace(/\/+$/, "");
   return noTrail.endsWith("/api") ? noTrail.slice(0, -4) : noTrail;
 }
