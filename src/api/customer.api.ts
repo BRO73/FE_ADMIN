@@ -6,6 +6,7 @@ const mapToCustomer = (res: CustomerResponse): CustomerResponse => ({
     fullName: res.fullName,
     phoneNumber: res.phoneNumber,
     email: res.email,
+    id: res.id,
 });
 
 
