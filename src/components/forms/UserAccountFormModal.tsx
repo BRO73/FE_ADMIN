@@ -28,17 +28,17 @@ interface Props {
 const UserAccountFormModal: React.FC<Props> = ({ open, onOpenChange, initial, onSubmit }) => {
     const [username, setUsername] = React.useState<string>("");
     const [password, setPassword] = React.useState<string>("");
-    const [role, setRole] = React.useState<string>("WAITSTAFF"); // default waiter
+    const [role, setRole] = React.useState<string>("ADMIN"); // default waiter
 
     useEffect(() => {
         if (initial) {
             setUsername(initial.username ?? "");
             setPassword(initial.passwordText ?? "");
-            setRole((initial.role ?? "WAITSTAFF").toUpperCase());
+            setRole((initial.role ?? "ADMIN").toUpperCase());
         } else {
             setUsername("");
             setPassword("");
-            setRole("WAITSTAFF");
+            setRole("ADMIN");
         }
     }, [initial, open]);
 
