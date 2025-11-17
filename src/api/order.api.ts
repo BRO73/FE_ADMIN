@@ -154,9 +154,13 @@ export const getTables = async (): Promise<TableResponse[]> => {
 /**
  * Lấy danh sách order (chỉ PENDING) (cho modal Tách/Gộp)
  */
-export const getPendingOrders = async (): Promise<OrderResponse[]> => {
+export const getPendingOrdersAndOrderDetailsComplete = async (): Promise<
+  OrderResponse[]
+> => {
   // Đảm bảo backend hỗ trợ filter ?status=PENDING
-  const { data } = await api.get<OrderResponse[]>("/orders/status/PENDING");
+  const { data } = await api.get<OrderResponse[]>(
+    "/orders/status/PENDING/completed"
+  );
   return data;
 };
 

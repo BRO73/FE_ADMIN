@@ -11,7 +11,7 @@ import {
 } from "lucide-react";
 import {
   getTables,
-  getPendingOrders,
+  getPendingOrdersAndOrderDetailsComplete,
   splitOrder,
   mergeOrder,
 } from "@/api/order.api";
@@ -67,7 +67,7 @@ const OrderManagement = () => {
 
   const fetchOrders = async () => {
     try {
-      const data = await getPendingOrders();
+      const data = await getPendingOrdersAndOrderDetailsComplete();
       setOrders(data);
     } catch (err: any) {
       console.error("Lỗi tải danh sách đơn hàng:", err);
@@ -329,10 +329,11 @@ const OrderManagement = () => {
               Làm mới
             </button>
             <button
-              onClick={() => navigate("/")}
-              className="p-2 text-gray-500 rounded-lg hover:bg-gray-100 hover:text-gray-800 transition-all"
+              onClick={() => navigate("/tables")}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all"
             >
-              <X className="w-5 h-5" />
+              <ChevronLeft className="w-4 h-4" />
+              Quản lý bàn
             </button>
           </div>
         </div>
