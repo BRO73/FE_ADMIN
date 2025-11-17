@@ -1,6 +1,6 @@
 import axios from "./axiosInstance";
 
-export type OrderItemStatus = "PENDING" | "IN_PROGRESS" | "DONE" | "CANCELED" | "SERVED";
+export type OrderItemStatus = "PENDING" | "DONE" | "CANCELED" | "COMPLETED";
 
 export interface KitchenTicketDto {
     orderDetailId: number;
@@ -39,5 +39,5 @@ export async function apiCompleteAllUnits(orderDetailId: number): Promise<void> 
 }
 
 export async function apiServeOneUnit(orderDetailId: number): Promise<void> {
-    await axios.patch(`/kitchen/order-details/${orderDetailId}/serve-one`);
+    await axios.patch(`/kitchen/order-details/${orderDetailId}/serve-all`);
 }

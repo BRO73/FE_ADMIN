@@ -28,7 +28,7 @@ type UseKitchenOpts = { intervalMs?: number };
 
 function normStatus(
   s?: string
-): "PENDING" | "IN_PROGRESS" | "DONE" | "CANCELED" | "SERVED" | string {
+): "PENDING"  | "DONE" | "CANCELED" | "COMPLETED" | string {
   return (s ?? "")
     .trim()
     .toUpperCase()
@@ -42,17 +42,19 @@ function isBoard(v: unknown): v is KitchenBoardPayload {
   );
 }
 function groupItems(items: KitchenTicketDto[]): TicketsShape {
-  const pending: KitchenTicketDto[] = [];
-  const inProgress: KitchenTicketDto[] = [];
-  const ready: KitchenTicketDto[] = [];
-  for (const it of items) {
-    const s = normStatus(it.status);
-    if (s === "PENDING") pending.push(it);
-    else if (s === "IN_PROGRESS") inProgress.push(it);
-    else if (s === "DONE") ready.push(it);
-  }
-  return { pending, inProgress, ready, readyToServe: ready };
+    const pending: KitchenTicketDto[] = [];
+    const inProgress: KitchenTicketDto[] = [];
+    const ready: KitchenTicketDto[] = [];
+
+    for (const it of items) {
+        const s = normStatus(it.status);
+        if (s === "PENDING") pending.push(it);
+        else if (s === "DONE") ready.push(it);
+    }
+
+    return { pending, inProgress, ready, readyToServe: ready };
 }
+
 
 export function useKitchen({ intervalMs = 5000 }: UseKitchenOpts = {}) {
   const [board, setBoard] = useState<KitchenBoardPayload | null>(null);

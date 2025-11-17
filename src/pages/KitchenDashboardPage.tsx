@@ -220,20 +220,21 @@ export default function KitchenDashboardPage(): JSX.Element {
     backend xử lý và gửi WebSocket về.
     ====================================================================
     */
-  const onRollback = async (t: KitchenTicket): Promise<void> => {
-    addTemp(setRollbackWork, t.orderDetailId);
-    try {
-      await updateStatus(t.orderDetailId, "IN_PROGRESS");
-      // await onRefreshAll(); // <-- ĐÃ XÓA
-    } catch {
-      setRollbackWork((prev) => {
-        const { [t.orderDetailId]: _, ...rest } = prev;
-        return rest;
-      });
-    }
-  };
+    const onRollback = async (t: KitchenTicket): Promise<void> => {
+        addTemp(setRollbackWork, t.orderDetailId);
+        try {
+            // rollback: DONE -> PENDING
+            await updateStatus(t.orderDetailId, "PENDING");
+        } catch {
+            setRollbackWork((prev) => {
+                const { [t.orderDetailId]: _, ...rest } = prev;
+                return rest;
+            });
+        }
+    };
 
-  const onRefreshAll = async (): Promise<void> => {
+
+    const onRefreshAll = async (): Promise<void> => {
     await Promise.allSettled([refresh(), loadAvailability()]);
   };
 
